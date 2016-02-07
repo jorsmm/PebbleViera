@@ -1,0 +1,66 @@
+{
+    "appKeys": {
+        "message": 1,
+        "status": 0
+    },
+    "capabilities": [
+        ""
+    ],
+    "companyName": "jorsmm@gmail.com",
+    "enableMultiJS": true,
+    "longName": "Viera",
+    "projectType": "native",
+    "resources": {
+        "media": [
+            {
+                "file": "images/power.png",
+                "name": "POWER",
+                "targetPlatforms": null,
+                "type": "bitmap"
+            },
+            {
+                "file": "images/tvc.png",
+                "name": "TVC",
+                "targetPlatforms": null,
+                "type": "bitmap"
+            },
+            {
+                "file": "images/tv_icon.png",
+                "menuIcon": true,
+                "name": "ICON",
+                "targetPlatforms": null,
+                "type": "bitmap"
+            },
+            {
+                "file": "images/confirm.png",
+                "name": "CONFIRM",
+                "targetPlatforms": null,
+                "type": "bitmap"
+            },
+            {
+                "file": "images/action_icon_plus.png",
+                "name": "PLUS",
+                "targetPlatforms": null,
+                "type": "bitmap"
+            },
+            {
+                "file": "images/action_icon_minus.png",
+                "name": "MINUS",
+                "targetPlatforms": null,
+                "type": "bitmap"
+            }
+        ]
+    },
+    "sdkVersion": "3",
+    "shortName": "Viera",
+    "targetPlatforms": [
+        "aplite",
+        "basalt",
+        "chalk"
+    ],
+    "uuid": "41dfb76e-28b9-4af9-8a2a-f071779ced9f",
+    "versionLabel": "1.0",
+    "watchapp": {
+        "watchface": false
+    }
+}
