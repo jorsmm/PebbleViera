@@ -13,6 +13,48 @@
     "resources": {
         "media": [
             {
+                "file": "images/info.png",
+                "name": "INFO",
+                "targetPlatforms": null,
+                "type": "bitmap"
+            },
+            {
+                "file": "images/dots.png",
+                "name": "CHINPUT",
+                "targetPlatforms": null,
+                "type": "bitmap"
+            },
+            {
+                "file": "images/mute.png",
+                "name": "MUTE",
+                "targetPlatforms": null,
+                "type": "bitmap"
+            },
+            {
+                "file": "images/chdown.png",
+                "name": "CHDOWN",
+                "targetPlatforms": null,
+                "type": "bitmap"
+            },
+            {
+                "file": "images/chup.png",
+                "name": "CHUP",
+                "targetPlatforms": null,
+                "type": "bitmap"
+            },
+            {
+                "file": "images/voldown.png",
+                "name": "VOLDOWN",
+                "targetPlatforms": null,
+                "type": "bitmap"
+            },
+            {
+                "file": "images/volup.png",
+                "name": "VOLUP",
+                "targetPlatforms": null,
+                "type": "bitmap"
+            },
+            {
                 "file": "images/power.png",
                 "name": "POWER",
                 "targetPlatforms": null,
@@ -28,12 +70,6 @@
                 "file": "images/tv_icon.png",
                 "menuIcon": true,
                 "name": "ICON",
-                "targetPlatforms": null,
-                "type": "bitmap"
-            },
-            {
-                "file": "images/confirm.png",
-                "name": "CONFIRM",
                 "targetPlatforms": null,
                 "type": "bitmap"
             },

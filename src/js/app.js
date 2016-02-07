@@ -1,5 +1,5 @@
 function sendToViera(command, option) {
-  console.log('####sendToViera'+command+','+option);
+  console.log('####sendToViera ['+command+'] '+option);
 
   var cuerpo='<?xml version="1.0" encoding="utf-8"?>'+
     '<s:Envelope xmlns:s="http://schemas.xmlsoap.org/soap/envelope/" s:encodingStyle="http://schemas.xmlsoap.org/soap/encoding/">'+
@@ -45,22 +45,15 @@ Pebble.addEventListener("ready",
                 console.log("####Event Ready");
 //                sendToViera('NRC_VOLUP-ONOFF');
 							});
-												
+
+var commands=['','NRC_VOLUP-ONOFF','NRC_MUTE-ONOFF','NRC_VOLDOWN-ONOFF',
+                 'NRC_CH_UP-ONOFF','NRC_TV-ONOFF','NRC_CH_DOWN-ONOFF',
+              'NRC_CHG_INPUT-ONOFF','NRC_POWER-ONOFF','NRC_INFO-ONOFF'];
+                              
 // Called when incoming message from the Pebble is received
 Pebble.addEventListener("appmessage",
 							function(e) {
 								console.log("####Received Status: " + e.payload.status);
-                if (e.payload.status == 1) {
-                sendToViera('NRC_VOLUP-ONOFF');
-                }
-                else if (e.payload.status == 2) {
-                sendToViera('NRC_VOLDOWN-ONOFF');
-                }
-                else if (e.payload.status == 3) {
-                sendToViera('NRC_POWER-ONOFF');
-                }
-                else {
-                  console.log("####Received Status RARO: " + e.payload.status);
-                }
+                sendToViera(commands[e.payload.status]);
                   //sendMessage();
 							});
