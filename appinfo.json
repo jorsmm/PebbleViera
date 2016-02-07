@@ -13,14 +13,14 @@
     "resources": {
         "media": [
             {
-                "file": "images/info.png",
-                "name": "INFO",
+                "file": "images/av.png",
+                "name": "CHINPUT",
                 "targetPlatforms": null,
                 "type": "bitmap"
             },
             {
-                "file": "images/dots.png",
-                "name": "CHINPUT",
+                "file": "images/info.png",
+                "name": "INFO",
                 "targetPlatforms": null,
                 "type": "bitmap"
             },
