@@ -3,6 +3,10 @@
 #define REPEAT_INTERVAL_MS 50
 #define DIALOG_CHOICE_WINDOW_MESSAGE "Panasonic"
 
+#ifdef PBL_SDK_3
+static StatusBarLayer *s_status_bar;
+#endif
+
 static Window *s_main_window;
 static TextLayer *s_label_layer;
 static BitmapLayer *s_icon_layer;
@@ -62,6 +66,13 @@ static void window_load(Window *window) {
   Layer *window_layer = window_get_root_layer(window);
   GRect bounds = layer_get_bounds(window_layer);
 
+  #ifdef PBL_SDK_3
+  // Set up the status bar last to ensure it is on top of other Layers
+  s_status_bar = status_bar_layer_create();
+  layer_add_child(window_layer, status_bar_layer_get_layer(s_status_bar));
+  status_bar_layer_set_colors(s_status_bar, GColorLightGray, GColorBlack);
+#endif
+  
   s_icon_bitmap = gbitmap_create_with_resource(RESOURCE_ID_TVC);
 
   const GEdgeInsets icon_insets = {.top = 7, .right = 28, .bottom = 56, .left = 14};
@@ -86,11 +97,14 @@ static void window_load(Window *window) {
   action_bar_layer_set_icon(s_action_bar_layer, BUTTON_ID_UP, s_tick_bitmap);
   action_bar_layer_set_icon(s_action_bar_layer, BUTTON_ID_DOWN, s_cross_bitmap);
   action_bar_layer_set_icon(s_action_bar_layer, BUTTON_ID_SELECT, s_power_bitmap);
+  action_bar_layer_set_background_color(s_action_bar_layer, GColorLightGray);
+
   action_bar_layer_add_to_window(s_action_bar_layer, window);
   
   // Set the click config provider:
   action_bar_layer_set_click_config_provider(s_action_bar_layer,
                                              click_config_provider);
+  
   
 }
 
@@ -146,7 +160,7 @@ void init(void) {
   APP_LOG(APP_LOG_LEVEL_DEBUG, ">>>Init");
 
   s_main_window = window_create();
-    window_set_background_color(s_main_window, PBL_IF_COLOR_ELSE(GColorYellow , GColorWhite));
+    window_set_background_color(s_main_window, PBL_IF_COLOR_ELSE(GColorWhite , GColorWhite));
     window_set_window_handlers(s_main_window, (WindowHandlers) {
         .load = window_load,
         .unload = window_unload,
