@@ -1,7 +1,7 @@
 #include <pebble.h>
 	
 #define REPEAT_INTERVAL_MS 50
-#define DIALOG_CHOICE_WINDOW_MESSAGE "Panasonic"
+#define DIALOG_CHOICE_WINDOW_MESSAGE "Jorge TV"
 
 #ifdef PBL_SDK_3
 static StatusBarLayer *s_status_bar;
@@ -75,13 +75,13 @@ static void window_load(Window *window) {
   
   s_icon_bitmap = gbitmap_create_with_resource(RESOURCE_ID_TVC);
 
-  const GEdgeInsets icon_insets = {.top = 7, .right = 28, .bottom = 56, .left = 14};
+  const GEdgeInsets icon_insets = {.top = 27, .right = 28, .bottom = 46, .left = 9};
   s_icon_layer = bitmap_layer_create(grect_inset(bounds, icon_insets));
   bitmap_layer_set_bitmap(s_icon_layer, s_icon_bitmap);
   bitmap_layer_set_compositing_mode(s_icon_layer, GCompOpSet);
   layer_add_child(window_layer, bitmap_layer_get_layer(s_icon_layer));
 
-  const GEdgeInsets label_insets = {.top = 112, .right = ACTION_BAR_WIDTH, .left = ACTION_BAR_WIDTH / 2};
+  const GEdgeInsets label_insets = {.top = 122, .right = ACTION_BAR_WIDTH, .left = ACTION_BAR_WIDTH / 3 };
   s_label_layer = text_layer_create(grect_inset(bounds, label_insets));
   text_layer_set_text(s_label_layer, DIALOG_CHOICE_WINDOW_MESSAGE);
   text_layer_set_background_color(s_label_layer, GColorClear);
