@@ -1,10 +1,8 @@
-var commands=['','NRC_VOLUP-ONOFF','NRC_MUTE-ONOFF','NRC_VOLDOWN-ONOFF',
-                 'NRC_CH_UP-ONOFF','NRC_TV-ONOFF','NRC_CH_DOWN-ONOFF',
-                 'NRC_CHG_INPUT-ONOFF','NRC_POWER-ONOFF','NRC_INFO-ONOFF'];                            
+var commands=['','VOLUP','MUTE','VOLDOWN',
+                 'CH_UP','TV','CH_DOWN',
+                 'CHG_INPUT','POWER','INFO'];                            
 var ipAddress="192.168.1.8";
 var port="55000";
-//var ipAddress="siroco.tgcm.info";
-//var port="80";
 
 // urls
 var URL_NETWORK			= '/nrc/control_0';
@@ -15,12 +13,14 @@ var URN_RENDERING		= 'schemas-upnp-org:service:RenderingControl:1';
 // actions
 var ACTION_SENDKEY		= 'X_SendKey';
 var ACTION_GETVOLUME	= 'GetVolume';
-var ACTION_SETVOLUME	= 'SetVolume';
 var ACTION_GETMUTE		= 'GetMute';
-var ACTION_SETMUTE		= 'SetMute';
 // args
 var ARG_SENDKEY			= 'X_KeyEvent';
 
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 function submitRequest (url, urn, action, options) {
 	var command_str = "<?xml version=\"1.0\" encoding=\"utf-8\"?>\n"+
 "<s:Envelope xmlns:s=\"http://schemas.xmlsoap.org/soap/envelope/\" s:encodingStyle=\"http://schemas.xmlsoap.org/soap/encoding/\">\n"+
@@ -30,6 +30,7 @@ function submitRequest (url, urn, action, options) {
 "  </u:"+action+">\n"+
 " </s:Body>\n"+
 "</s:Envelope>\n";
+  console.log('###submitRequest ['+command_str+']');
 
   var req = new XMLHttpRequest();
   req.open('POST', 'http://'+ipAddress+':'+port+url);
@@ -54,6 +55,8 @@ function submitRequest (url, urn, action, options) {
   req.send(command_str);
 }
 
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 /**
  * Send a key state event to the TV
  * 
@@ -95,6 +98,8 @@ var send = function(key){
 	sendKey(key,'ONOFF');
 };
 
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 /**
  * Get the current volume value
  * 
@@ -118,21 +123,6 @@ var getVolume = function(callback){
           console.log(">>getVolume no encontrada respuesta esperada");
         }
 			}
-		}
-	);
-};
-/**
- * Set the volume to specific level
- * 
- * @param  {int} volume The value to set the volume to
- */
-var setVolume = function(volume){
-	submitRequest(
-		URL_RENDERING,
-		URN_RENDERING,
-		ACTION_SETVOLUME,
-		{
-			args: "<InstanceID>0</InstanceID><Channel>Master</Channel><DesiredVolume>"+volume+"</DesiredVolume>"
 		}
 	);
 };
@@ -164,56 +154,11 @@ var getMute = function(callback){
 		}
 	);
 };
-/**
- * Set mute to on/off
- * 
- * @param  {boolean} enable The value to set mute to
- */
-var setMute = function(enable){
-	var data = (enable)? '1' : '0';
-	submitRequest(
-		URL_RENDERING,
-		URN_RENDERING,
-		ACTION_SETMUTE,
-		{
-			args: "<InstanceID>0</InstanceID><Channel>Master</Channel><DesiredMute>"+data+"</DesiredMute>"
-		}
-	);
-};
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-function sendToViera(command, option) {
-  console.log('####sendToViera ['+command+'] '+option);
-
-  var cuerpo='<?xml version="1.0" encoding="utf-8"?>'+
-    '<s:Envelope xmlns:s="http://schemas.xmlsoap.org/soap/envelope/" s:encodingStyle="http://schemas.xmlsoap.org/soap/encoding/">'+
-    '<s:Body><u:X_SendKey xmlns:u="urn:panasonic-com:service:p00NetworkControl:1">'+
-    '<X_KeyEvent>'+command+'</X_KeyEvent>'+
-    '</u:X_SendKey></s:Body></s:Envelope>';
-
-  console.log('##2#sendToViera ['+cuerpo+']');
-
-  var req = new XMLHttpRequest();
-  req.open('POST', 'http://'+ipAddress+':55000/nrc/control_0');
-  req.setRequestHeader("Content-Type", "text/xml; charset=utf-8");
-  req.setRequestHeader("SOAPACTION", '"urn:panasonic-com:service:p00NetworkControl:1#X_SendKey"');         
-  req.onload = function () {
-    if (req.readyState === 4) {
-      if (req.status === 200) {
-        console.log("####"+req.responseText);
-        sendStatus(0);
-      } else {
-        sendStatus(0);
-        console.log('Error:'+req.status+","+req.statusText);
-      }
-    }
-  };
-  req.send(cuerpo);
-}
-
 function sendMyMessage(mymessage) {
 	Pebble.sendAppMessage({"message": mymessage});
 }
@@ -239,6 +184,10 @@ var pintaRespuestaMute = function(respuesta){
   sendMyMessage("m="+respuesta);
 };
 
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // Called when JS is ready
 Pebble.addEventListener("ready",
    function(e) {
@@ -251,6 +200,6 @@ Pebble.addEventListener("ready",
 Pebble.addEventListener("appmessage",
    function(e) {
       console.log("####Received Status: " + e.payload.status);
-      sendToViera(commands[e.payload.status]);
+      send(commands[e.payload.status]);
    }
 );

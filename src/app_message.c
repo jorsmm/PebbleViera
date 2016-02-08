@@ -4,11 +4,12 @@
 #define MAX_BITMAPS 9
 
 #ifdef PBL_SDK_3
-static StatusBarLayer *s_status_bar;
+//static StatusBarLayer *s_status_bar;
 #endif
 
 static Window *s_main_window;
 static TextLayer *s_label_layer;
+static TextLayer *text_time_layer;
 static BitmapLayer *s_icon_layer;
 static ActionBarLayer *s_action_bar_layer;
 
@@ -21,11 +22,16 @@ int offset=0;
 static int s_volume = 50;
 static int s_mute = 0;
 
+static int s_status_pending=0;
+
 // Key values for AppMessage Dictionary
 enum {
 	STATUS_KEY = 0,	
 	MESSAGE_KEY = 1
 };
+
+/////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////
 
 bool startsWith(const char *pre, const char *str) {
     size_t lenpre = strlen(pre),
@@ -33,17 +39,40 @@ bool startsWith(const char *pre, const char *str) {
     return lenstr < lenpre ? false : strncmp(pre, str, lenpre) == 0;
 }
 
-// Write message to buffer & send
-void send_message(int status){
-	DictionaryIterator *iter;
-	
-	app_message_outbox_begin(&iter);
-	dict_write_uint8(iter, STATUS_KEY, status);
-	
-	dict_write_end(iter);
-  	app_message_outbox_send();
+/////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////
+void handle_minute_tick(struct tm *tick_time, TimeUnits units_changed) {
+  static char time_text[] = "00:00";
+  char *time_format;
+  //Time
+  if (clock_is_24h_style()) {
+    time_format = "%R";
+  } else {
+    time_format = "%I:%M";
+  }
+  strftime(time_text, sizeof(time_text), time_format, tick_time);
+  if (!clock_is_24h_style() && (time_text[0] == '0')) {
+    memmove(time_text, &time_text[1], sizeof(time_text) - 1);
+  }
+  text_layer_set_text(text_time_layer, time_text);
+  //Redraw layer
+//  layer_mark_dirty(main_layer);
 }
 
+/////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////
+// Write message to buffer & send
+void send_message(int status){
+  s_status_pending=1;
+	DictionaryIterator *iter;
+	app_message_outbox_begin(&iter);
+	dict_write_uint8(iter, STATUS_KEY, status);
+	dict_write_end(iter);
+  app_message_outbox_send();
+}
+
+/////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////
 static void update_text() {
   static char s_body_text[18];
   if (offset==0 && s_mute==1) {
@@ -62,11 +91,14 @@ static void update_action_bar_layer() {
   update_text();
 } 
 
+/////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////
 static void select_long_click_handler(ClickRecognizerRef recognizer, void *context) {
   offset=(offset+1)%(MAX_BITMAPS/3);
   update_action_bar_layer();
 }
 static void increment_click_handler(ClickRecognizerRef recognizer, void *context) {
+  if (s_status_pending) {return;}
   if (offset==0) {
     s_volume++;
     s_mute=0;
@@ -82,6 +114,7 @@ static void select_click_handler(ClickRecognizerRef recognizer, void *context) {
   update_text();
 }
 static void decrement_click_handler(ClickRecognizerRef recognizer, void *context) {
+  if (s_status_pending) {return;}
   if (offset==0) {
     if (s_volume>0) {
       s_mute=0;
@@ -102,6 +135,8 @@ static void click_config_provider(void *context) {
   window_long_click_subscribe(BUTTON_ID_SELECT, 400, select_long_click_handler, NULL);
 }
 
+/////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////
 
 static void window_load(Window *window) {
   Layer *window_layer = window_get_root_layer(window);
@@ -109,20 +144,28 @@ static void window_load(Window *window) {
 
 #ifdef PBL_SDK_3
   // Set up the status bar last to ensure it is on top of other Layers
-  s_status_bar = status_bar_layer_create();
-  layer_add_child(window_layer, status_bar_layer_get_layer(s_status_bar));
-  status_bar_layer_set_colors(s_status_bar, GColorGreen, GColorBlack);
+//  s_status_bar = status_bar_layer_create();
+//  layer_add_child(window_layer, status_bar_layer_get_layer(s_status_bar));
+//  status_bar_layer_set_colors(s_status_bar, GColorGreen, GColorBlack);
 #endif
   
   s_icon_bitmap = gbitmap_create_with_resource(RESOURCE_ID_TVC);
 
-  const GEdgeInsets icon_insets = {.top = 27, .right = 28, .bottom = 46, .left = 9};
+  const GEdgeInsets time_insets = {.top = -9, .right = ACTION_BAR_WIDTH, .bottom = 145, .left = ACTION_BAR_WIDTH / 3 };
+  text_time_layer = text_layer_create(grect_inset(bounds, time_insets));
+  text_layer_set_background_color(text_time_layer, GColorClear);
+  text_layer_set_text_color (text_time_layer, GColorBlue);
+  text_layer_set_text_alignment(text_time_layer, GTextAlignmentCenter);
+  text_layer_set_font(text_time_layer, fonts_get_system_font(FONT_KEY_GOTHIC_28_BOLD));
+  layer_add_child(window_layer, text_layer_get_layer(text_time_layer));
+
+  const GEdgeInsets icon_insets = {.top = 37, .right = ACTION_BAR_WIDTH, .bottom = 41, .left = ACTION_BAR_WIDTH / 3};
   s_icon_layer = bitmap_layer_create(grect_inset(bounds, icon_insets));
   bitmap_layer_set_bitmap(s_icon_layer, s_icon_bitmap);
   bitmap_layer_set_compositing_mode(s_icon_layer, GCompOpSet);
   layer_add_child(window_layer, bitmap_layer_get_layer(s_icon_layer));
 
-  const GEdgeInsets label_insets = {.top = 122, .right = ACTION_BAR_WIDTH, .left = ACTION_BAR_WIDTH / 3 };
+  const GEdgeInsets label_insets = {.top = 127, .right = ACTION_BAR_WIDTH, .left = ACTION_BAR_WIDTH / 3 };
   s_label_layer = text_layer_create(grect_inset(bounds, label_insets));
   text_layer_set_background_color(s_label_layer, GColorClear);
   text_layer_set_text_alignment(s_label_layer, GTextAlignmentCenter);
@@ -163,11 +206,15 @@ static void window_unload(Window *window) {
   s_main_window = NULL;
 }
 
+/////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////
+
 // Called when a message is received from PebbleKitJS
 static void in_received_handler(DictionaryIterator *received, void *context) {
 	Tuple *tuple;
 	tuple = dict_find(received, STATUS_KEY);
 	if(tuple) {
+    s_status_pending=0;
 		APP_LOG(APP_LOG_LEVEL_DEBUG, "Received Status: %d", (int)tuple->value->uint32); 
 	}
 	tuple = dict_find(received, MESSAGE_KEY);
@@ -203,6 +250,9 @@ static void in_dropped_handler(AppMessageResult reason, void *context) {
 static void out_failed_handler(DictionaryIterator *failed, AppMessageResult reason, void *context) {
 }
 
+/////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////
+
 void init(void) {
   APP_LOG(APP_LOG_LEVEL_DEBUG, ">>>Init");
   s_main_window = window_create();
@@ -217,10 +267,12 @@ void init(void) {
 	app_message_register_inbox_dropped(in_dropped_handler); 
 	app_message_register_outbox_failed(out_failed_handler);		
 	app_message_open(app_message_inbox_size_maximum(), app_message_outbox_size_maximum());
+  tick_timer_service_subscribe(MINUTE_UNIT, handle_minute_tick);
 }
 void deinit(void) {
   APP_LOG(APP_LOG_LEVEL_DEBUG, "<<<DeInit");
 	app_message_deregister_callbacks();
+  tick_timer_service_unsubscribe();
 	window_destroy(s_main_window);
 }
 int main( void ) {
