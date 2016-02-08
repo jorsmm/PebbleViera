@@ -18,12 +18,20 @@ static GBitmap* table[MAX_BITMAPS];
 static char* titles[MAX_BITMAPS/3];
 
 int offset=0;
+static int s_volume = 50;
+static int s_mute = 0;
 
 // Key values for AppMessage Dictionary
 enum {
 	STATUS_KEY = 0,	
 	MESSAGE_KEY = 1
 };
+
+bool startsWith(const char *pre, const char *str) {
+    size_t lenpre = strlen(pre),
+           lenstr = strlen(str);
+    return lenstr < lenpre ? false : strncmp(pre, str, lenpre) == 0;
+}
 
 // Write message to buffer & send
 void send_message(int status){
@@ -36,12 +44,22 @@ void send_message(int status){
   	app_message_outbox_send();
 }
 
+static void update_text() {
+  static char s_body_text[18];
+  if (offset==0 && s_mute==1) {
+    snprintf(s_body_text, sizeof(s_body_text), "MUTE");
+  }
+  else {
+    snprintf(s_body_text, sizeof(s_body_text), titles[offset], s_volume);
+  }
+  text_layer_set_text(s_label_layer, s_body_text);
+}
+
 static void update_action_bar_layer() {
   action_bar_layer_set_icon(s_action_bar_layer, BUTTON_ID_UP, table[offset*3]);
   action_bar_layer_set_icon(s_action_bar_layer, BUTTON_ID_SELECT, table[(offset*3)+1]);
   action_bar_layer_set_icon(s_action_bar_layer, BUTTON_ID_DOWN, table[(offset*3)+2]); 
-  text_layer_set_text(s_label_layer, titles[offset]);
-
+  update_text();
 } 
 
 static void select_long_click_handler(ClickRecognizerRef recognizer, void *context) {
@@ -49,13 +67,32 @@ static void select_long_click_handler(ClickRecognizerRef recognizer, void *conte
   update_action_bar_layer();
 }
 static void increment_click_handler(ClickRecognizerRef recognizer, void *context) {
+  if (offset==0) {
+    s_volume++;
+    s_mute=0;
+  }
+  update_text();
   send_message(offset*3+0x1);
 }
 static void select_click_handler(ClickRecognizerRef recognizer, void *context) {
+  if (offset==0) {
+    s_mute=(s_mute+1)%2;
+  }
   send_message(offset*3+0x2);
+  update_text();
 }
 static void decrement_click_handler(ClickRecognizerRef recognizer, void *context) {
-    send_message(offset*3+0x3);
+  if (offset==0) {
+    if (s_volume>0) {
+      s_mute=0;
+      s_volume--;
+    }
+    else {
+      return;
+    }
+  }
+  update_text();
+  send_message(offset*3+0x3);
 }
 
 static void click_config_provider(void *context) {
@@ -92,7 +129,7 @@ static void window_load(Window *window) {
   text_layer_set_font(s_label_layer, fonts_get_system_font(FONT_KEY_GOTHIC_24_BOLD));
   layer_add_child(window_layer, text_layer_get_layer(s_label_layer));
 
-  titles[0]="Volume";
+  titles[0]="Vol = %u";
   titles[1]="TV Channels";
   titles[2]="General";
   table[0] = gbitmap_create_with_resource(RESOURCE_ID_VOLUP);
@@ -136,6 +173,27 @@ static void in_received_handler(DictionaryIterator *received, void *context) {
 	tuple = dict_find(received, MESSAGE_KEY);
 	if(tuple) {
 		APP_LOG(APP_LOG_LEVEL_DEBUG, "Received Message: %s", tuple->value->cstring);
+    if (startsWith("v=",tuple->value->cstring)) {
+      size_t lenstring = strlen(tuple->value->cstring);
+      int tamano=lenstring-2;
+      char svolume[tamano+1];
+      memcpy( svolume, &tuple->value->cstring[2], tamano );
+      svolume[tamano] = '\0';
+      s_volume = atoi( svolume );
+      APP_LOG(APP_LOG_LEVEL_DEBUG, "Received VOLUME: %u", s_volume);
+      update_text();
+    }
+    else if (startsWith("m=",tuple->value->cstring)) {
+      size_t lenstring = strlen(tuple->value->cstring);
+      int tamano=lenstring-2;
+      char smute[tamano+1];
+      memcpy( smute, &tuple->value->cstring[2], tamano );
+      smute[tamano] = '\0';
+      s_mute = atoi( smute );
+      APP_LOG(APP_LOG_LEVEL_DEBUG, "Received MUTE: %u", s_mute);
+      update_text();
+    }
+
 	}
 }
 // Called when an incoming message from PebbleKitJS is dropped
