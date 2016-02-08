@@ -76,9 +76,11 @@ void send_message(int status){
 static void update_text() {
   static char s_body_text[18];
   if (offset==0 && s_mute==1) {
+    text_layer_set_text_color (s_label_layer, GColorRed);
     snprintf(s_body_text, sizeof(s_body_text), "MUTE");
   }
   else {
+    text_layer_set_text_color (s_label_layer, GColorBlack);
     snprintf(s_body_text, sizeof(s_body_text), titles[offset], s_volume);
   }
   text_layer_set_text(s_label_layer, s_body_text);
@@ -151,7 +153,7 @@ static void window_load(Window *window) {
   
   s_icon_bitmap = gbitmap_create_with_resource(RESOURCE_ID_TVC);
 
-  const GEdgeInsets time_insets = {.top = -9, .right = ACTION_BAR_WIDTH, .bottom = 145, .left = ACTION_BAR_WIDTH / 3 };
+  const GEdgeInsets time_insets = {.top = -5, .right = ACTION_BAR_WIDTH, .bottom = 145, .left = ACTION_BAR_WIDTH / 3 };
   text_time_layer = text_layer_create(grect_inset(bounds, time_insets));
   text_layer_set_background_color(text_time_layer, GColorClear);
   text_layer_set_text_color (text_time_layer, GColorBlue);
