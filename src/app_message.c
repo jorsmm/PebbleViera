@@ -13,6 +13,7 @@
 static Window *s_main_window;
 static TextLayer *s_label_layer;
 static TextLayer *text_time_layer;
+static TextLayer *text_day_layer;
 static BitmapLayer *s_icon_layer;
 static ActionBarLayer *s_action_bar_layer;
 
@@ -21,7 +22,7 @@ static GBitmap *s_icon_bitmap;
 static GBitmap* table[MAX_BITMAPS];
 static char* titles[MAX_BITMAPS/3];
 
-int offset=0;
+int offset=2;
 static int s_volume = VOLUME_DEFAULT;
 static int s_mute = 0;
 
@@ -91,20 +92,22 @@ static void bluetooth_callback(bool connected) {
 /////////////////////////////////////////////////////////////////////////
 static void battery_update_proc(Layer *layer, GContext *ctx) {
   GRect bounds = layer_get_bounds(layer);
-
   // Find the width of the bar
   int width = (int)(float)(((float)s_battery_level / 100.0F) * bounds.size.w);
-
   // Draw the background
   graphics_context_set_fill_color(ctx, GColorClear);
   graphics_fill_rect(ctx, bounds, 0, GCornerNone);
-
   // Draw the bar
   if (s_battery_is_charging) {
     graphics_context_set_fill_color(ctx, GColorYellow);
   }
   else {
-    graphics_context_set_fill_color(ctx, GColorBlue);
+    if (s_battery_level > 20) {
+      graphics_context_set_fill_color(ctx, GColorBlue);
+    }
+    else {
+      graphics_context_set_fill_color(ctx, GColorRed);      
+    }
   }
   graphics_fill_rect(ctx, GRect(0, 0, width, bounds.size.h), 0, GCornerNone);
 }
@@ -113,6 +116,7 @@ static void battery_update_proc(Layer *layer, GContext *ctx) {
 /////////////////////////////////////////////////////////////////////////
 void handle_minute_tick(struct tm *tick_time, TimeUnits units_changed) {
   static char time_text[] = "00:00";
+  static char day_text[] = "00";
   char *time_format;
   //Time
   if (clock_is_24h_style()) {
@@ -124,8 +128,9 @@ void handle_minute_tick(struct tm *tick_time, TimeUnits units_changed) {
   if (!clock_is_24h_style() && (time_text[0] == '0')) {
     memmove(time_text, &time_text[1], sizeof(time_text) - 1);
   }
+  strftime(day_text, sizeof(day_text), "%d", tick_time);
   text_layer_set_text(text_time_layer, time_text);
-  
+  text_layer_set_text(text_day_layer, day_text);
   if (!s_tv_screen_is_on) {
     send_message(100);
   }
@@ -181,13 +186,11 @@ static void update_text() {
     snprintf(s_body_text, sizeof(s_body_text), titles[offset], s_volume);
   }
   text_layer_set_text(s_label_layer, s_body_text);
-  
   if (s_ctx!=NULL) {
     bars_update_callback(bars_layer, s_ctx);
     progress_update_callback(main_layer, s_ctx);
   }
 }
-
 static void update_action_bar_layer() {
   layer_mark_dirty(bars_layer);
   action_bar_layer_set_icon(s_action_bar_layer, BUTTON_ID_UP, table[offset*3]);
@@ -208,6 +211,8 @@ static void tv_screen_is_on() {
   APP_LOG(APP_LOG_LEVEL_DEBUG, "tv_screen_is_on: %d", s_tv_screen_is_on);
   if (!s_tv_screen_is_on) {
     s_tv_screen_is_on = true;
+    offset=0;
+    update_action_bar_layer();
     update_tv_layers();
   }
 }
@@ -215,7 +220,10 @@ static void tv_screen_is_off() {
   APP_LOG(APP_LOG_LEVEL_DEBUG, "tv_screen_is_off: %d", s_tv_screen_is_on);
   if (s_tv_screen_is_on) {
     s_tv_screen_is_on = false;
+    offset=2;
+    update_action_bar_layer();
     update_tv_layers();
+    update_text();
   }
 }
 
@@ -280,20 +288,15 @@ static void window_load(Window *window) {
 //  status_bar_layer_set_colors(s_status_bar, GColorGreen, GColorBlack);
 #endif
   
-  s_icon_bitmap = gbitmap_create_with_resource(RESOURCE_ID_TVC);
+  // el dia
+  const GEdgeInsets day_insets = {.top = -5, .right = 117, .bottom = 140, .left = -2 + lateral };
+  text_day_layer = text_layer_create(grect_inset(bounds, day_insets));
+  text_layer_set_background_color(text_day_layer, GColorBlue);
+  text_layer_set_text_color (text_day_layer, GColorWhite);
+  text_layer_set_text_alignment(text_day_layer, GTextAlignmentCenter);
+  text_layer_set_font(text_day_layer, fonts_get_system_font(FONT_KEY_GOTHIC_28_BOLD));
+  layer_add_child(window_layer, text_layer_get_layer(text_day_layer));
 
-  // Create battery meter Layer
-  s_battery_icon_bitmap = gbitmap_create_with_resource(RESOURCE_ID_IMAGE_BATTERY);
-  s_battery_icon_layer = bitmap_layer_create(GRect(5, 2, 24, 24));
-  bitmap_layer_set_bitmap(s_battery_icon_layer, s_battery_icon_bitmap);
-  layer_add_child(window_get_root_layer(window), bitmap_layer_get_layer(s_battery_icon_layer));
-
-  s_battery_layer = layer_create(GRect(7, 10, 18, 8));
-  layer_set_update_proc(s_battery_layer, battery_update_proc);
-  layer_add_child(window_get_root_layer(window), s_battery_layer);
-  // Ensure battery level is displayed from the start
-  battery_callback(battery_state_service_peek());  
-  
   // la hora
   const GEdgeInsets time_insets = {.top = -5, .right = ACTION_BAR_WIDTH, .bottom = 145, .left = ACTION_BAR_WIDTH / 3 + lateral };
   text_time_layer = text_layer_create(grect_inset(bounds, time_insets));
@@ -303,6 +306,18 @@ static void window_load(Window *window) {
   text_layer_set_font(text_time_layer, fonts_get_system_font(FONT_KEY_GOTHIC_28_BOLD));
   layer_add_child(window_layer, text_layer_get_layer(text_time_layer));
 
+    // Create battery meter Layer
+  s_battery_icon_bitmap = gbitmap_create_with_resource(RESOURCE_ID_IMAGE_BATTERY);
+  s_battery_icon_layer = bitmap_layer_create(GRect(88, 2, 24, 24));
+  bitmap_layer_set_bitmap(s_battery_icon_layer, s_battery_icon_bitmap);
+  layer_add_child(window_get_root_layer(window), bitmap_layer_get_layer(s_battery_icon_layer));
+
+  s_battery_layer = layer_create(GRect(90, 10, 18, 8));
+  layer_set_update_proc(s_battery_layer, battery_update_proc);
+  layer_add_child(window_get_root_layer(window), s_battery_layer);
+  // Ensure battery level is displayed from the start
+  battery_callback(battery_state_service_peek());  
+  
   // Create the Bluetooth icon GBitmap
   s_bt_icon_bitmap = gbitmap_create_with_resource(RESOURCE_ID_IMAGE_BT_ICON);
   s_bt_icon_layer = bitmap_layer_create(GRect(90, 2, 24, 24));
@@ -313,6 +328,7 @@ static void window_load(Window *window) {
   bluetooth_callback(connection_service_peek_pebble_app_connection());
   
   // icono central
+  s_icon_bitmap = gbitmap_create_with_resource(RESOURCE_ID_TVC);
   const GEdgeInsets icon_insets = {.top = 32, .right = ACTION_BAR_WIDTH, .bottom = 46, .left = ACTION_BAR_WIDTH / 3};
   s_icon_layer = bitmap_layer_create(grect_inset(bounds, icon_insets));
   bitmap_layer_set_bitmap(s_icon_layer, s_icon_bitmap);
@@ -362,6 +378,8 @@ static void window_load(Window *window) {
 
 static void window_unload(Window *window) {
   text_layer_destroy(s_label_layer);
+  text_layer_destroy(text_time_layer);
+  text_layer_destroy(text_day_layer);
   action_bar_layer_destroy(s_action_bar_layer);
   bitmap_layer_destroy(s_icon_layer);
   layer_destroy(bars_layer);

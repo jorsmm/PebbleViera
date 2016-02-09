@@ -187,8 +187,6 @@ var pintaRespuestaMute = function(respuesta){
 Pebble.addEventListener("ready",
    function(e) {
       console.log("##2##Event Ready");
-      getVolume(pintaRespuestaVolumen);
-      getMute(pintaRespuestaMute);
    }
 );
 
