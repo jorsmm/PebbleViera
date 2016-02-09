@@ -24,6 +24,9 @@ static int s_mute = 0;
 
 static int s_status_pending=0;
 
+Layer *bars_layer;
+Layer *main_layer;
+
 // Key values for AppMessage Dictionary
 enum {
 	STATUS_KEY = 0,	
@@ -32,7 +35,6 @@ enum {
 
 /////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////
-
 bool startsWith(const char *pre, const char *str) {
     size_t lenpre = strlen(pre),
            lenstr = strlen(str);
@@ -55,8 +57,6 @@ void handle_minute_tick(struct tm *tick_time, TimeUnits units_changed) {
     memmove(time_text, &time_text[1], sizeof(time_text) - 1);
   }
   text_layer_set_text(text_time_layer, time_text);
-  //Redraw layer
-//  layer_mark_dirty(main_layer);
 }
 
 /////////////////////////////////////////////////////////////////////////
@@ -90,8 +90,46 @@ static void update_action_bar_layer() {
   action_bar_layer_set_icon(s_action_bar_layer, BUTTON_ID_UP, table[offset*3]);
   action_bar_layer_set_icon(s_action_bar_layer, BUTTON_ID_SELECT, table[(offset*3)+1]);
   action_bar_layer_set_icon(s_action_bar_layer, BUTTON_ID_DOWN, table[(offset*3)+2]); 
+  //Redraw layer
+  layer_mark_dirty(main_layer);
+  layer_mark_dirty(bars_layer);
   update_text();
 } 
+
+/////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////
+void bars_update_callback(Layer *me, GContext* ctx) {
+  (void)me;
+
+  if (offset==0) {
+    layer_set_hidden (me, false);
+    graphics_context_set_stroke_color(ctx, GColorBlack);
+    graphics_draw_line(ctx, GPoint(5, 135),     GPoint(112-7, 135));
+    graphics_draw_line(ctx, GPoint(5, 135+18),   GPoint(112-7, 135+18));
+    graphics_draw_line(ctx, GPoint(4, 136),     GPoint(4, 136+16));
+    graphics_draw_line(ctx, GPoint(112-6, 136), GPoint(112-6, 136+16));
+  }
+  else {
+    layer_set_hidden (me, true);
+  }
+}
+void progress_update_callback(Layer *me, GContext* ctx) {
+  if (offset==0) {
+    layer_set_hidden (me, false);
+    if (s_mute==1) {
+      graphics_context_set_stroke_color(ctx, GColorLightGray);
+      graphics_context_set_fill_color(ctx, GColorLightGray);
+    }
+    else {
+      graphics_context_set_stroke_color(ctx, GColorGreen);
+      graphics_context_set_fill_color(ctx, GColorGreen);
+    }
+    graphics_fill_rect(ctx, GRect(5, 136, s_volume, 17), 0, GCornerNone);
+  }
+  else {
+    layer_set_hidden (me, true);
+  }
+}
 
 /////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////
@@ -102,8 +140,13 @@ static void select_long_click_handler(ClickRecognizerRef recognizer, void *conte
 static void increment_click_handler(ClickRecognizerRef recognizer, void *context) {
   if (s_status_pending) {return;}
   if (offset==0) {
-    s_volume++;
-    s_mute=0;
+    if (s_volume<100) {
+      s_volume++;
+      s_mute=0;
+    }
+    else {
+      return;
+    }
   }
   update_text();
   send_message(offset*3+0x1);
@@ -167,6 +210,13 @@ static void window_load(Window *window) {
   bitmap_layer_set_compositing_mode(s_icon_layer, GCompOpSet);
   layer_add_child(window_layer, bitmap_layer_get_layer(s_icon_layer));
 
+  bars_layer = layer_create(layer_get_frame(window_layer));
+  layer_set_update_proc(bars_layer, bars_update_callback);
+  layer_add_child(window_layer, bars_layer);
+  main_layer = layer_create(layer_get_frame(window_layer));
+  layer_set_update_proc(main_layer, progress_update_callback);
+  layer_add_child(window_layer, main_layer);
+  
   const GEdgeInsets label_insets = {.top = 127, .right = ACTION_BAR_WIDTH, .left = ACTION_BAR_WIDTH / 3 };
   s_label_layer = text_layer_create(grect_inset(bounds, label_insets));
   text_layer_set_background_color(s_label_layer, GColorClear);
@@ -199,6 +249,8 @@ static void window_unload(Window *window) {
   text_layer_destroy(s_label_layer);
   action_bar_layer_destroy(s_action_bar_layer);
   bitmap_layer_destroy(s_icon_layer);
+  layer_destroy(bars_layer);
+  layer_destroy(main_layer);
   int i=0;
   for (i=0; i< MAX_BITMAPS; i++) {
     gbitmap_destroy(table[i]);
