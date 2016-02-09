@@ -104,10 +104,10 @@ void bars_update_callback(Layer *me, GContext* ctx) {
   if (offset==0) {
     layer_set_hidden (me, false);
     graphics_context_set_stroke_color(ctx, GColorBlack);
-    graphics_draw_line(ctx, GPoint(5, 135),     GPoint(112-7, 135));
+//    graphics_draw_line(ctx, GPoint(5, 135),     GPoint(112-7, 135));
     graphics_draw_line(ctx, GPoint(5, 135+18),   GPoint(112-7, 135+18));
-    graphics_draw_line(ctx, GPoint(4, 136),     GPoint(4, 136+16));
-    graphics_draw_line(ctx, GPoint(112-6, 136), GPoint(112-6, 136+16));
+//    graphics_draw_line(ctx, GPoint(4, 136),     GPoint(4, 136+16));
+//    graphics_draw_line(ctx, GPoint(112-6, 136), GPoint(112-6, 136+16));
   }
   else {
     layer_set_hidden (me, true);
