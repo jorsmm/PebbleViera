@@ -37,6 +37,7 @@ function submitRequest (url, urn, action, options) {
   req.setRequestHeader("Content-Type", "text/xml; charset=utf-8");
   req.setRequestHeader("SOAPACTION", '"urn:'+urn+'#'+action+'"');
   req.onload = function () {
+    console.log(">>>>>>>>>>##readyState##"+req.readyState);
     if (req.readyState === 4) {
       if (req.status === 200) {
         console.log("##respuesta##"+req.responseText);
@@ -47,10 +48,15 @@ function submitRequest (url, urn, action, options) {
           options.callback(req.responseText);
         }
       } else {
-        sendStatus(0);
+        sendStatus(-1);
         console.log('Error:'+req.status+","+req.statusText);
       }
     }
+  };
+  req.timeout = 2000;
+  req.ontimeout = function () { 
+    sendStatus(-2);
+    console.log('Error TIMEOUT'); 
   };
   req.send(command_str);
 }
@@ -72,22 +78,6 @@ var sendKey = function(key, state){
 			args: "<"+ARG_SENDKEY+">NRC_"+key+"-"+state+"</"+ARG_SENDKEY+">"
 		}
 	);
-};
-/**
- * Send a key press event to the TV 
- * 
- * @param  {String} key   The key that has been pressed
- */
-var keyDown = function(key){
-	sendKey(key,'ON');
-};
-/**
- * Send a key release event to the TV
- * 
- * @param  {String} key   The key that has been released
- */
-var keyUp = function(key){
-	sendKey(key,'OFF');
 };
 /**
  * Send a key push/release event to the TV

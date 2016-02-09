@@ -7,6 +7,9 @@
 //static StatusBarLayer *s_status_bar;
 #endif
 
+#define VOLUME_PKEY 1
+#define VOLUME_DEFAULT 50
+
 static Window *s_main_window;
 static TextLayer *s_label_layer;
 static TextLayer *text_time_layer;
@@ -19,7 +22,7 @@ static GBitmap* table[MAX_BITMAPS];
 static char* titles[MAX_BITMAPS/3];
 
 int offset=0;
-static int s_volume = 50;
+static int s_volume = VOLUME_DEFAULT;
 static int s_mute = 0;
 
 static int s_status_pending=0;
@@ -27,11 +30,15 @@ static int s_status_pending=0;
 Layer *bars_layer;
 Layer *main_layer;
 
+static GContext* s_ctx;
+
 // Key values for AppMessage Dictionary
 enum {
 	STATUS_KEY = 0,	
 	MESSAGE_KEY = 1
 };
+
+static int lateral=PBL_IF_RECT_ELSE(0, 25);
 
 /////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////
@@ -73,7 +80,44 @@ void send_message(int status){
 
 /////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////
+void bars_update_callback(Layer *me, GContext* ctx) {
+  (void)me;
+  s_ctx=ctx;
+  if (offset==0) {
+    layer_set_hidden (me, false);
+    graphics_context_set_stroke_color(ctx, GColorBlue);
+    graphics_draw_line(ctx, GPoint(5, 135),     GPoint(112-7, 135));
+    graphics_draw_line(ctx, GPoint(5+lateral, 135+18),   GPoint(112-7+lateral, 135+18));
+    graphics_draw_line(ctx, GPoint(4, 136),     GPoint(4, 136+16));
+    graphics_draw_line(ctx, GPoint(112-6, 136), GPoint(112-6, 136+16));
+  }
+  else {
+    layer_set_hidden (me, true);
+  }
+}
+void progress_update_callback(Layer *me, GContext* ctx) {
+  s_ctx=ctx;  
+  if (offset==0) {
+    layer_set_hidden (me, false);
+    if (s_mute==1) {
+      graphics_context_set_stroke_color(ctx, GColorLightGray);
+      graphics_context_set_fill_color(ctx, GColorLightGray);
+    }
+    else {
+      graphics_context_set_stroke_color(ctx, GColorCyan);
+      graphics_context_set_fill_color(ctx, GColorCyan);
+    }
+    graphics_fill_rect(ctx, GRect(5+lateral, 136, s_volume, 17), 0, GCornersAll);
+  }
+  else {
+    layer_set_hidden (me, true);
+  }
+}
+
+/////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////
 static void update_text() {
+  layer_mark_dirty(main_layer);
   static char s_body_text[18];
   if (offset==0 && s_mute==1) {
     text_layer_set_text_color (s_label_layer, GColorRed);
@@ -84,52 +128,20 @@ static void update_text() {
     snprintf(s_body_text, sizeof(s_body_text), titles[offset], s_volume);
   }
   text_layer_set_text(s_label_layer, s_body_text);
+  
+  if (s_ctx!=NULL) {
+    bars_update_callback(bars_layer, s_ctx);
+    progress_update_callback(main_layer, s_ctx);
+  }
 }
 
 static void update_action_bar_layer() {
+  layer_mark_dirty(bars_layer);
   action_bar_layer_set_icon(s_action_bar_layer, BUTTON_ID_UP, table[offset*3]);
   action_bar_layer_set_icon(s_action_bar_layer, BUTTON_ID_SELECT, table[(offset*3)+1]);
   action_bar_layer_set_icon(s_action_bar_layer, BUTTON_ID_DOWN, table[(offset*3)+2]); 
-  //Redraw layer
-  layer_mark_dirty(main_layer);
-  layer_mark_dirty(bars_layer);
   update_text();
 } 
-
-/////////////////////////////////////////////////////////////////////////
-/////////////////////////////////////////////////////////////////////////
-void bars_update_callback(Layer *me, GContext* ctx) {
-  (void)me;
-
-  if (offset==0) {
-    layer_set_hidden (me, false);
-    graphics_context_set_stroke_color(ctx, GColorBlack);
-//    graphics_draw_line(ctx, GPoint(5, 135),     GPoint(112-7, 135));
-    graphics_draw_line(ctx, GPoint(5, 135+18),   GPoint(112-7, 135+18));
-//    graphics_draw_line(ctx, GPoint(4, 136),     GPoint(4, 136+16));
-//    graphics_draw_line(ctx, GPoint(112-6, 136), GPoint(112-6, 136+16));
-  }
-  else {
-    layer_set_hidden (me, true);
-  }
-}
-void progress_update_callback(Layer *me, GContext* ctx) {
-  if (offset==0) {
-    layer_set_hidden (me, false);
-    if (s_mute==1) {
-      graphics_context_set_stroke_color(ctx, GColorLightGray);
-      graphics_context_set_fill_color(ctx, GColorLightGray);
-    }
-    else {
-      graphics_context_set_stroke_color(ctx, GColorGreen);
-      graphics_context_set_fill_color(ctx, GColorGreen);
-    }
-    graphics_fill_rect(ctx, GRect(5, 136, s_volume, 17), 0, GCornerNone);
-  }
-  else {
-    layer_set_hidden (me, true);
-  }
-}
 
 /////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////
@@ -172,7 +184,6 @@ static void decrement_click_handler(ClickRecognizerRef recognizer, void *context
   update_text();
   send_message(offset*3+0x3);
 }
-
 static void click_config_provider(void *context) {
   window_single_repeating_click_subscribe(BUTTON_ID_UP, REPEAT_INTERVAL_MS, increment_click_handler);
   window_single_repeating_click_subscribe(BUTTON_ID_DOWN, REPEAT_INTERVAL_MS, decrement_click_handler);
@@ -182,7 +193,6 @@ static void click_config_provider(void *context) {
 
 /////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////
-
 static void window_load(Window *window) {
   Layer *window_layer = window_get_root_layer(window);
   GRect bounds = layer_get_bounds(window_layer);
@@ -196,7 +206,7 @@ static void window_load(Window *window) {
   
   s_icon_bitmap = gbitmap_create_with_resource(RESOURCE_ID_TVC);
 
-  const GEdgeInsets time_insets = {.top = -5, .right = ACTION_BAR_WIDTH, .bottom = 145, .left = ACTION_BAR_WIDTH / 3 };
+  const GEdgeInsets time_insets = {.top = -5, .right = ACTION_BAR_WIDTH, .bottom = 145, .left = ACTION_BAR_WIDTH / 3 + lateral };
   text_time_layer = text_layer_create(grect_inset(bounds, time_insets));
   text_layer_set_background_color(text_time_layer, GColorClear);
   text_layer_set_text_color (text_time_layer, GColorBlue);
@@ -204,7 +214,7 @@ static void window_load(Window *window) {
   text_layer_set_font(text_time_layer, fonts_get_system_font(FONT_KEY_GOTHIC_28_BOLD));
   layer_add_child(window_layer, text_layer_get_layer(text_time_layer));
 
-  const GEdgeInsets icon_insets = {.top = 37, .right = ACTION_BAR_WIDTH, .bottom = 41, .left = ACTION_BAR_WIDTH / 3};
+  const GEdgeInsets icon_insets = {.top = 32, .right = ACTION_BAR_WIDTH, .bottom = 46, .left = ACTION_BAR_WIDTH / 3};
   s_icon_layer = bitmap_layer_create(grect_inset(bounds, icon_insets));
   bitmap_layer_set_bitmap(s_icon_layer, s_icon_bitmap);
   bitmap_layer_set_compositing_mode(s_icon_layer, GCompOpSet);
@@ -217,7 +227,7 @@ static void window_load(Window *window) {
   layer_set_update_proc(main_layer, progress_update_callback);
   layer_add_child(window_layer, main_layer);
   
-  const GEdgeInsets label_insets = {.top = 127, .right = ACTION_BAR_WIDTH, .left = ACTION_BAR_WIDTH / 3 };
+  const GEdgeInsets label_insets = {.top = 127, .right = ACTION_BAR_WIDTH, .left = ACTION_BAR_WIDTH / 3 + lateral};
   s_label_layer = text_layer_create(grect_inset(bounds, label_insets));
   text_layer_set_background_color(s_label_layer, GColorClear);
   text_layer_set_text_alignment(s_label_layer, GTextAlignmentCenter);
@@ -322,9 +332,11 @@ void init(void) {
 	app_message_register_outbox_failed(out_failed_handler);		
 	app_message_open(app_message_inbox_size_maximum(), app_message_outbox_size_maximum());
   tick_timer_service_subscribe(MINUTE_UNIT, handle_minute_tick);
+//  s_volume = persist_exists(VOLUME_PKEY) ? persist_read_int(VOLUME_PKEY) : VOLUME_DEFAULT;
 }
 void deinit(void) {
   APP_LOG(APP_LOG_LEVEL_DEBUG, "<<<DeInit");
+//  persist_write_int(VOLUME_PKEY, s_volume);
 	app_message_deregister_callbacks();
   tick_timer_service_unsubscribe();
 	window_destroy(s_main_window);
