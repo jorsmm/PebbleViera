@@ -8,7 +8,7 @@
 #endif
 
 #define VOLUME_PKEY 1
-#define VOLUME_DEFAULT 50
+#define VOLUME_DEFAULT 0
 
 static Window *s_main_window;
 static TextLayer *s_label_layer;
@@ -32,6 +32,17 @@ Layer *main_layer;
 
 static GContext* s_ctx;
 
+static int s_battery_level;
+static bool s_battery_is_charging;
+static Layer *s_battery_layer;
+static BitmapLayer *s_battery_icon_layer;
+static GBitmap *s_battery_icon_bitmap;
+
+static BitmapLayer *s_bt_icon_layer;
+static GBitmap *s_bt_icon_bitmap;
+
+static bool s_tv_screen_is_on=false;
+
 // Key values for AppMessage Dictionary
 enum {
 	STATUS_KEY = 0,	
@@ -50,6 +61,56 @@ bool startsWith(const char *pre, const char *str) {
 
 /////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////
+// Write message to buffer & send
+void send_message(int status){
+  s_status_pending=1;
+	DictionaryIterator *iter;
+	app_message_outbox_begin(&iter);
+	dict_write_uint8(iter, STATUS_KEY, status);
+	dict_write_end(iter);
+  app_message_outbox_send();
+}
+
+/////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////
+static void battery_callback(BatteryChargeState state) {
+  // Record the new battery level
+  s_battery_level = state.charge_percent;
+  s_battery_is_charging = state.is_charging;
+}
+static void bluetooth_callback(bool connected) {
+  // Show icon if disconnected
+  layer_set_hidden(bitmap_layer_get_layer(s_bt_icon_layer), connected);
+
+  if(!connected) {
+    // Issue a vibrating alert
+    vibes_double_pulse();
+  }
+}
+/////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////
+static void battery_update_proc(Layer *layer, GContext *ctx) {
+  GRect bounds = layer_get_bounds(layer);
+
+  // Find the width of the bar
+  int width = (int)(float)(((float)s_battery_level / 100.0F) * bounds.size.w);
+
+  // Draw the background
+  graphics_context_set_fill_color(ctx, GColorClear);
+  graphics_fill_rect(ctx, bounds, 0, GCornerNone);
+
+  // Draw the bar
+  if (s_battery_is_charging) {
+    graphics_context_set_fill_color(ctx, GColorYellow);
+  }
+  else {
+    graphics_context_set_fill_color(ctx, GColorBlue);
+  }
+  graphics_fill_rect(ctx, GRect(0, 0, width, bounds.size.h), 0, GCornerNone);
+}
+
+/////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////
 void handle_minute_tick(struct tm *tick_time, TimeUnits units_changed) {
   static char time_text[] = "00:00";
   char *time_format;
@@ -64,18 +125,10 @@ void handle_minute_tick(struct tm *tick_time, TimeUnits units_changed) {
     memmove(time_text, &time_text[1], sizeof(time_text) - 1);
   }
   text_layer_set_text(text_time_layer, time_text);
-}
-
-/////////////////////////////////////////////////////////////////////////
-/////////////////////////////////////////////////////////////////////////
-// Write message to buffer & send
-void send_message(int status){
-  s_status_pending=1;
-	DictionaryIterator *iter;
-	app_message_outbox_begin(&iter);
-	dict_write_uint8(iter, STATUS_KEY, status);
-	dict_write_end(iter);
-  app_message_outbox_send();
+  
+  if (!s_tv_screen_is_on) {
+    send_message(100);
+  }
 }
 
 /////////////////////////////////////////////////////////////////////////
@@ -145,6 +198,29 @@ static void update_action_bar_layer() {
 
 /////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////
+static void update_tv_layers() {
+  layer_set_hidden(bitmap_layer_get_layer(s_icon_layer), !s_tv_screen_is_on);
+  layer_set_hidden(text_layer_get_layer(s_label_layer), !s_tv_screen_is_on);
+  layer_set_hidden(main_layer, !s_tv_screen_is_on);
+  layer_set_hidden(bars_layer, !s_tv_screen_is_on);
+}
+static void tv_screen_is_on() {
+  APP_LOG(APP_LOG_LEVEL_DEBUG, "tv_screen_is_on: %d", s_tv_screen_is_on);
+  if (!s_tv_screen_is_on) {
+    s_tv_screen_is_on = true;
+    update_tv_layers();
+  }
+}
+static void tv_screen_is_off() {
+  APP_LOG(APP_LOG_LEVEL_DEBUG, "tv_screen_is_off: %d", s_tv_screen_is_on);
+  if (s_tv_screen_is_on) {
+    s_tv_screen_is_on = false;
+    update_tv_layers();
+  }
+}
+
+/////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////
 static void select_long_click_handler(ClickRecognizerRef recognizer, void *context) {
   offset=(offset+1)%(MAX_BITMAPS/3);
   update_action_bar_layer();
@@ -206,6 +282,19 @@ static void window_load(Window *window) {
   
   s_icon_bitmap = gbitmap_create_with_resource(RESOURCE_ID_TVC);
 
+  // Create battery meter Layer
+  s_battery_icon_bitmap = gbitmap_create_with_resource(RESOURCE_ID_IMAGE_BATTERY);
+  s_battery_icon_layer = bitmap_layer_create(GRect(5, 2, 24, 24));
+  bitmap_layer_set_bitmap(s_battery_icon_layer, s_battery_icon_bitmap);
+  layer_add_child(window_get_root_layer(window), bitmap_layer_get_layer(s_battery_icon_layer));
+
+  s_battery_layer = layer_create(GRect(7, 10, 18, 8));
+  layer_set_update_proc(s_battery_layer, battery_update_proc);
+  layer_add_child(window_get_root_layer(window), s_battery_layer);
+  // Ensure battery level is displayed from the start
+  battery_callback(battery_state_service_peek());  
+  
+  // la hora
   const GEdgeInsets time_insets = {.top = -5, .right = ACTION_BAR_WIDTH, .bottom = 145, .left = ACTION_BAR_WIDTH / 3 + lateral };
   text_time_layer = text_layer_create(grect_inset(bounds, time_insets));
   text_layer_set_background_color(text_time_layer, GColorClear);
@@ -214,26 +303,42 @@ static void window_load(Window *window) {
   text_layer_set_font(text_time_layer, fonts_get_system_font(FONT_KEY_GOTHIC_28_BOLD));
   layer_add_child(window_layer, text_layer_get_layer(text_time_layer));
 
+  // Create the Bluetooth icon GBitmap
+  s_bt_icon_bitmap = gbitmap_create_with_resource(RESOURCE_ID_IMAGE_BT_ICON);
+  s_bt_icon_layer = bitmap_layer_create(GRect(90, 2, 24, 24));
+  bitmap_layer_set_background_color(s_bt_icon_layer, GColorRed);
+  bitmap_layer_set_bitmap(s_bt_icon_layer, s_bt_icon_bitmap);
+  layer_add_child(window_get_root_layer(window), bitmap_layer_get_layer(s_bt_icon_layer));
+  // Show the correct state of the BT connection from the start
+  bluetooth_callback(connection_service_peek_pebble_app_connection());
+  
+  // icono central
   const GEdgeInsets icon_insets = {.top = 32, .right = ACTION_BAR_WIDTH, .bottom = 46, .left = ACTION_BAR_WIDTH / 3};
   s_icon_layer = bitmap_layer_create(grect_inset(bounds, icon_insets));
   bitmap_layer_set_bitmap(s_icon_layer, s_icon_bitmap);
   bitmap_layer_set_compositing_mode(s_icon_layer, GCompOpSet);
+  layer_set_hidden(bitmap_layer_get_layer(s_icon_layer), !s_tv_screen_is_on);
   layer_add_child(window_layer, bitmap_layer_get_layer(s_icon_layer));
 
+  // barra de volumen
   bars_layer = layer_create(layer_get_frame(window_layer));
   layer_set_update_proc(bars_layer, bars_update_callback);
+  layer_set_hidden(bars_layer, !s_tv_screen_is_on);
   layer_add_child(window_layer, bars_layer);
   main_layer = layer_create(layer_get_frame(window_layer));
   layer_set_update_proc(main_layer, progress_update_callback);
+  layer_set_hidden(main_layer, !s_tv_screen_is_on);
   layer_add_child(window_layer, main_layer);
-  
+
+  // texto
   const GEdgeInsets label_insets = {.top = 127, .right = ACTION_BAR_WIDTH, .left = ACTION_BAR_WIDTH / 3 + lateral};
   s_label_layer = text_layer_create(grect_inset(bounds, label_insets));
   text_layer_set_background_color(s_label_layer, GColorClear);
   text_layer_set_text_alignment(s_label_layer, GTextAlignmentCenter);
   text_layer_set_font(s_label_layer, fonts_get_system_font(FONT_KEY_GOTHIC_24_BOLD));
+  layer_set_hidden(text_layer_get_layer(s_label_layer), !s_tv_screen_is_on);
   layer_add_child(window_layer, text_layer_get_layer(s_label_layer));
-
+    
   titles[0]="Vol = %u";
   titles[1]="TV Channels";
   titles[2]="General";
@@ -261,6 +366,11 @@ static void window_unload(Window *window) {
   bitmap_layer_destroy(s_icon_layer);
   layer_destroy(bars_layer);
   layer_destroy(main_layer);
+  layer_destroy(s_battery_layer);
+  gbitmap_destroy(s_bt_icon_bitmap);
+  bitmap_layer_destroy(s_bt_icon_layer);
+  gbitmap_destroy(s_battery_icon_bitmap);
+  bitmap_layer_destroy(s_battery_icon_layer);
   int i=0;
   for (i=0; i< MAX_BITMAPS; i++) {
     gbitmap_destroy(table[i]);
@@ -279,7 +389,13 @@ static void in_received_handler(DictionaryIterator *received, void *context) {
 	tuple = dict_find(received, STATUS_KEY);
 	if(tuple) {
     s_status_pending=0;
-		APP_LOG(APP_LOG_LEVEL_DEBUG, "Received Status: %d", (int)tuple->value->uint32); 
+		APP_LOG(APP_LOG_LEVEL_DEBUG, "Received Status: %d", (int)tuple->value->uint32);
+    if ((int)tuple->value->uint32 == 0) {
+      	tv_screen_is_on();
+    }
+    else if ((int)tuple->value->uint32 == 104) {
+      	tv_screen_is_off();
+    }
 	}
 	tuple = dict_find(received, MESSAGE_KEY);
 	if(tuple) {
@@ -331,14 +447,23 @@ void init(void) {
 	app_message_register_inbox_dropped(in_dropped_handler); 
 	app_message_register_outbox_failed(out_failed_handler);		
 	app_message_open(app_message_inbox_size_maximum(), app_message_outbox_size_maximum());
+  // Register for minute updates
   tick_timer_service_subscribe(MINUTE_UNIT, handle_minute_tick);
+  // Register for battery level updates
+  battery_state_service_subscribe(battery_callback);
+  // Register for Bluetooth connection updates
+  connection_service_subscribe((ConnectionHandlers) {
+    .pebble_app_connection_handler = bluetooth_callback
+  });
 //  s_volume = persist_exists(VOLUME_PKEY) ? persist_read_int(VOLUME_PKEY) : VOLUME_DEFAULT;
 }
 void deinit(void) {
   APP_LOG(APP_LOG_LEVEL_DEBUG, "<<<DeInit");
 //  persist_write_int(VOLUME_PKEY, s_volume);
 	app_message_deregister_callbacks();
+  battery_state_service_unsubscribe();
   tick_timer_service_unsubscribe();
+  connection_service_unsubscribe();
 	window_destroy(s_main_window);
 }
 int main( void ) {

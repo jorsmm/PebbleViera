@@ -47,15 +47,20 @@ function submitRequest (url, urn, action, options) {
           console.log("##llamar a callback##");
           options.callback(req.responseText);
         }
-      } else {
-        sendStatus(-1);
+      } 
+      else if (req.status === 400) {
+        sendStatus(104);
+        console.log('Error TV apagada:'+req.status+","+req.statusText);
+      }
+      else {
+        sendStatus(101);
         console.log('Error:'+req.status+","+req.statusText);
       }
     }
   };
   req.timeout = 2000;
   req.ontimeout = function () { 
-    sendStatus(-2);
+    sendStatus(102);
     console.log('Error TIMEOUT'); 
   };
   req.send(command_str);
@@ -184,12 +189,19 @@ Pebble.addEventListener("ready",
       console.log("##2##Event Ready");
       getVolume(pintaRespuestaVolumen);
       getMute(pintaRespuestaMute);
-   });
+   }
+);
 
 // Called when incoming message from the Pebble is received
 Pebble.addEventListener("appmessage",
    function(e) {
       console.log("####Received Status: " + e.payload.status);
+     if (e.payload.status == 100) {
+      getVolume(pintaRespuestaVolumen);
+      getMute(pintaRespuestaMute);
+     }
+     else {
       send(commands[e.payload.status]);
+     }
    }
 );

@@ -13,6 +13,18 @@
     "resources": {
         "media": [
             {
+                "file": "images/battery.png",
+                "name": "IMAGE_BATTERY",
+                "targetPlatforms": null,
+                "type": "bitmap"
+            },
+            {
+                "file": "images/bt-icon.png",
+                "name": "IMAGE_BT_ICON",
+                "targetPlatforms": null,
+                "type": "bitmap"
+            },
+            {
                 "file": "images/av.png",
                 "name": "CHINPUT",
                 "targetPlatforms": null,
