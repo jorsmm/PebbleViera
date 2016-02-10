@@ -103,7 +103,7 @@ static void battery_update_proc(Layer *layer, GContext *ctx) {
   }
   else {
     if (s_battery_level > 20) {
-      graphics_context_set_fill_color(ctx, GColorLightGreen);
+      graphics_context_set_fill_color(ctx, GColorGreen);
     }
     else {
       graphics_context_set_fill_color(ctx, GColorRed);      
