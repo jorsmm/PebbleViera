@@ -103,7 +103,7 @@ static void battery_update_proc(Layer *layer, GContext *ctx) {
   }
   else {
     if (s_battery_level > 20) {
-      graphics_context_set_fill_color(ctx, GColorBlue);
+      graphics_context_set_fill_color(ctx, GColorLightGreen);
     }
     else {
       graphics_context_set_fill_color(ctx, GColorRed);      
@@ -298,7 +298,7 @@ static void window_load(Window *window) {
   layer_add_child(window_layer, text_layer_get_layer(text_day_layer));
 
   // la hora
-  const GEdgeInsets time_insets = {.top = -5, .right = ACTION_BAR_WIDTH, .bottom = 145, .left = ACTION_BAR_WIDTH / 3 + lateral };
+  const GEdgeInsets time_insets = {.top = -5, .right = ACTION_BAR_WIDTH +4, .bottom = 145, .left = ACTION_BAR_WIDTH / 3 - 4 + lateral };
   text_time_layer = text_layer_create(grect_inset(bounds, time_insets));
   text_layer_set_background_color(text_time_layer, GColorClear);
   text_layer_set_text_color (text_time_layer, GColorBlue);
@@ -312,7 +312,7 @@ static void window_load(Window *window) {
   bitmap_layer_set_bitmap(s_battery_icon_layer, s_battery_icon_bitmap);
   layer_add_child(window_get_root_layer(window), bitmap_layer_get_layer(s_battery_icon_layer));
 
-  s_battery_layer = layer_create(GRect(90, 10, 18, 8));
+  s_battery_layer = layer_create(GRect(90, 10, 19, 8));
   layer_set_update_proc(s_battery_layer, battery_update_proc);
   layer_add_child(window_get_root_layer(window), s_battery_layer);
   // Ensure battery level is displayed from the start
