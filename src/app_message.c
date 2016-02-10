@@ -38,6 +38,7 @@ static bool s_battery_is_charging;
 static Layer *s_battery_layer;
 static BitmapLayer *s_battery_icon_layer;
 static GBitmap *s_battery_icon_bitmap;
+static TextLayer *text_battery_layer;
 
 static BitmapLayer *s_bt_icon_layer;
 static GBitmap *s_bt_icon_bitmap;
@@ -110,6 +111,9 @@ static void battery_update_proc(Layer *layer, GContext *ctx) {
     }
   }
   graphics_fill_rect(ctx, GRect(0, 0, width, bounds.size.h), 0, GCornerNone);
+  static char ss_battery_level[4];
+  snprintf(ss_battery_level,sizeof(ss_battery_level),"%u", s_battery_level);
+  text_layer_set_text(text_battery_layer, ss_battery_level);
 }
 
 /////////////////////////////////////////////////////////////////////////
@@ -315,6 +319,14 @@ static void window_load(Window *window) {
   s_battery_layer = layer_create(GRect(90, 10, 19, 8));
   layer_set_update_proc(s_battery_layer, battery_update_proc);
   layer_add_child(window_get_root_layer(window), s_battery_layer);
+
+  text_battery_layer = text_layer_create(GRect(90, 8, 19, 9));
+  text_layer_set_background_color(text_battery_layer, GColorClear);
+  text_layer_set_text_color (text_battery_layer, GColorBlack);
+  text_layer_set_text_alignment(text_battery_layer, GTextAlignmentCenter);
+  text_layer_set_font(text_battery_layer, fonts_get_system_font(FONT_KEY_GOTHIC_09));
+  layer_add_child(window_layer, text_layer_get_layer(text_battery_layer));
+
   // Ensure battery level is displayed from the start
   battery_callback(battery_state_service_peek());  
   
@@ -389,6 +401,7 @@ static void window_unload(Window *window) {
   bitmap_layer_destroy(s_bt_icon_layer);
   gbitmap_destroy(s_battery_icon_bitmap);
   bitmap_layer_destroy(s_battery_icon_layer);
+  text_layer_destroy(text_battery_layer);
   int i=0;
   for (i=0; i< MAX_BITMAPS; i++) {
     gbitmap_destroy(table[i]);
