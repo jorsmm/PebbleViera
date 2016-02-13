@@ -27,7 +27,7 @@ int offset=2;
 static int s_volume = VOLUME_DEFAULT;
 static int s_mute = 0;
 
-static int s_status_pending=0;
+static int s_volume_status_pending=0;
 
 Layer *bars_layer;
 Layer *main_layer;
@@ -74,7 +74,10 @@ void send_message(int status){
   APP_LOG(APP_LOG_LEVEL_INFO, "send_message: %d", status);
   if (status != 100) {
     s_last_status_sent=status;
-    s_status_pending=1;
+    // se pulsa subir/bajar volumen
+    if (status == 1 || status ==3) {
+      s_volume_status_pending=1;
+    }
   }
 	DictionaryIterator *iter;
 	app_message_outbox_begin(&iter);
@@ -253,8 +256,9 @@ static void select_long_click_handler(ClickRecognizerRef recognizer, void *conte
   update_action_bar_layer();
 }
 static void increment_click_handler(ClickRecognizerRef recognizer, void *context) {
-  if (s_status_pending) {return;}
+  // si se está en la parte de volumen
   if (offset==0) {
+    if (s_volume_status_pending) {return;}
     if (s_volume<100) {
       s_volume++;
       s_mute=0;
@@ -274,8 +278,8 @@ static void select_click_handler(ClickRecognizerRef recognizer, void *context) {
   update_text();
 }
 static void decrement_click_handler(ClickRecognizerRef recognizer, void *context) {
-  if (s_status_pending) {return;}
   if (offset==0) {
+    if (s_volume_status_pending) {return;}
     if (s_volume>0) {
       s_mute=0;
       s_volume--;
@@ -441,7 +445,7 @@ static void in_received_handler(DictionaryIterator *received, void *context) {
 	Tuple *tuple;
 	tuple = dict_find(received, STATUS_KEY);
 	if(tuple) {
-    s_status_pending=0;
+    s_volume_status_pending=0;
 		APP_LOG(APP_LOG_LEVEL_DEBUG, "Received Status: %d", (int)tuple->value->uint32);
     // recibido status indicando que la tv está apagada
     if ((int)tuple->value->uint32 == 104) {
