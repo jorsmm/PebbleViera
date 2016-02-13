@@ -45,6 +45,11 @@ static GBitmap *s_bt_icon_bitmap;
 
 static bool s_tv_screen_is_on=false;
 
+static int s_last_status_sent=-1;
+
+// status a enviar para encender/apagar TV
+static int TVONOFF=8;
+
 // Key values for AppMessage Dictionary
 enum {
 	STATUS_KEY = 0,	
@@ -65,6 +70,8 @@ bool startsWith(const char *pre, const char *str) {
 /////////////////////////////////////////////////////////////////////////
 // Write message to buffer & send
 void send_message(int status){
+  APP_LOG(APP_LOG_LEVEL_INFO, "send_message: %d", status);
+  s_last_status_sent=status;
   s_status_pending=1;
 	DictionaryIterator *iter;
 	app_message_outbox_begin(&iter);
@@ -119,6 +126,8 @@ static void battery_update_proc(Layer *layer, GContext *ctx) {
 /////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////
 void handle_minute_tick(struct tm *tick_time, TimeUnits units_changed) {
+  APP_LOG(APP_LOG_LEVEL_DEBUG, "handle_minute_tick");
+
   static char time_text[] = "00:00";
   static char day_text[] = "00";
   char *time_format;
@@ -166,8 +175,8 @@ void progress_update_callback(Layer *me, GContext* ctx) {
       graphics_context_set_fill_color(ctx, GColorLightGray);
     }
     else {
-      graphics_context_set_stroke_color(ctx, GColorCyan);
-      graphics_context_set_fill_color(ctx, GColorCyan);
+      graphics_context_set_stroke_color(ctx, GColorBlue);
+      graphics_context_set_fill_color(ctx, GColorBlue);
     }
     graphics_fill_rect(ctx, GRect(5+lateral, 136, s_volume, 17), 0, GCornersAll);
   }
@@ -206,7 +215,7 @@ static void update_action_bar_layer() {
 /////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////
 static void update_tv_layers() {
-  layer_set_hidden(bitmap_layer_get_layer(s_icon_layer), !s_tv_screen_is_on);
+//  layer_set_hidden(bitmap_layer_get_layer(s_icon_layer), !s_tv_screen_is_on);
   layer_set_hidden(text_layer_get_layer(s_label_layer), !s_tv_screen_is_on);
   layer_set_hidden(main_layer, !s_tv_screen_is_on);
   layer_set_hidden(bars_layer, !s_tv_screen_is_on);
@@ -214,15 +223,18 @@ static void update_tv_layers() {
 static void tv_screen_is_on() {
   APP_LOG(APP_LOG_LEVEL_DEBUG, "tv_screen_is_on: %d", s_tv_screen_is_on);
   if (!s_tv_screen_is_on) {
+    APP_LOG(APP_LOG_LEVEL_INFO, "tv_screen_is_on: LA TV ESTA ENCENDIDA");
     s_tv_screen_is_on = true;
     offset=0;
     update_action_bar_layer();
     update_tv_layers();
+    update_text();
   }
 }
 static void tv_screen_is_off() {
   APP_LOG(APP_LOG_LEVEL_DEBUG, "tv_screen_is_off: %d", s_tv_screen_is_on);
   if (s_tv_screen_is_on) {
+    APP_LOG(APP_LOG_LEVEL_INFO, "tv_screen_is_on: LA TV ESTA APAGADA");
     s_tv_screen_is_on = false;
     offset=2;
     update_action_bar_layer();
@@ -345,7 +357,7 @@ static void window_load(Window *window) {
   s_icon_layer = bitmap_layer_create(grect_inset(bounds, icon_insets));
   bitmap_layer_set_bitmap(s_icon_layer, s_icon_bitmap);
   bitmap_layer_set_compositing_mode(s_icon_layer, GCompOpSet);
-  layer_set_hidden(bitmap_layer_get_layer(s_icon_layer), !s_tv_screen_is_on);
+//  layer_set_hidden(bitmap_layer_get_layer(s_icon_layer), !s_tv_screen_is_on);
   layer_add_child(window_layer, bitmap_layer_get_layer(s_icon_layer));
 
   // barra de volumen
@@ -421,11 +433,12 @@ static void in_received_handler(DictionaryIterator *received, void *context) {
 	if(tuple) {
     s_status_pending=0;
 		APP_LOG(APP_LOG_LEVEL_DEBUG, "Received Status: %d", (int)tuple->value->uint32);
-    if ((int)tuple->value->uint32 == 0) {
-      	tv_screen_is_on();
-    }
-    else if ((int)tuple->value->uint32 == 104) {
+    // recibido status indicando que la tv está apagada
+    if ((int)tuple->value->uint32 == 104) {
       	tv_screen_is_off();
+    }
+    if (s_last_status_sent==TVONOFF && (int)tuple->value->uint32 == 0) {
+      send_message(100);
     }
 	}
 	tuple = dict_find(received, MESSAGE_KEY);
@@ -439,7 +452,8 @@ static void in_received_handler(DictionaryIterator *received, void *context) {
       svolume[tamano] = '\0';
       s_volume = atoi( svolume );
       APP_LOG(APP_LOG_LEVEL_DEBUG, "Received VOLUME: %u", s_volume);
-      update_text();
+      // si se recibe un volumen es que la TV está encendida
+      tv_screen_is_on();
     }
     else if (startsWith("m=",tuple->value->cstring)) {
       size_t lenstring = strlen(tuple->value->cstring);

@@ -41,27 +41,30 @@ function submitRequest (url, urn, action, options) {
     if (req.readyState === 4) {
       if (req.status === 200) {
         console.log("##respuesta##"+req.responseText);
-        sendStatus(0);
         console.log("##options##"+options+","+options.hasOwnProperty('callback'));
         if(options.hasOwnProperty('callback')){
           console.log("##llamar a callback##");
           options.callback(req.responseText);
         }
+        else {
+          console.log("##No hay Callback: Enviar Status OK (0)##");
+          sendStatus(0);
+        }
       } 
       else if (req.status === 400) {
+        console.log('Error 400, Enviar que La TV está apagada (104):'+req.status+","+req.statusText);
         sendStatus(104);
-        console.log('Error TV apagada:'+req.status+","+req.statusText);
       }
       else {
-        sendStatus(101);
         console.log('Error:'+req.status+","+req.statusText);
+        sendStatus(101);
       }
     }
   };
   req.timeout = 2000;
   req.ontimeout = function () { 
+    console.log('Error de TIMEOUT. Enviar status 102'); 
     sendStatus(102);
-    console.log('Error TIMEOUT'); 
   };
   req.send(command_str);
 }
@@ -177,6 +180,7 @@ var pintaRespuestaVolumen = function(respuesta){
 var pintaRespuestaMute = function(respuesta){
   console.log(">>>>>pintaRespuestaMute ["+respuesta+"]");
   sendMyMessage("m="+respuesta);
+  getVolume(pintaRespuestaVolumen);
 };
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -195,7 +199,6 @@ Pebble.addEventListener("appmessage",
    function(e) {
       console.log("####Received Status: " + e.payload.status);
      if (e.payload.status == 100) {
-      getVolume(pintaRespuestaVolumen);
       getMute(pintaRespuestaMute);
      }
      else {
