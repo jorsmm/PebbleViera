@@ -15,6 +15,7 @@ static TextLayer *s_label_layer;
 static TextLayer *text_time_layer;
 static TextLayer *text_day_layer;
 static BitmapLayer *s_icon_layer;
+static TextLayer *s_tv_screen_layer;
 static ActionBarLayer *s_action_bar_layer;
 
 static GBitmap *s_icon_bitmap;
@@ -215,7 +216,7 @@ static void update_action_bar_layer() {
 /////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////
 static void update_tv_layers() {
-//  layer_set_hidden(bitmap_layer_get_layer(s_icon_layer), !s_tv_screen_is_on);
+  layer_set_hidden(text_layer_get_layer(s_tv_screen_layer), s_tv_screen_is_on);
   layer_set_hidden(text_layer_get_layer(s_label_layer), !s_tv_screen_is_on);
   layer_set_hidden(main_layer, !s_tv_screen_is_on);
   layer_set_hidden(bars_layer, !s_tv_screen_is_on);
@@ -351,14 +352,20 @@ static void window_load(Window *window) {
   // Show the correct state of the BT connection from the start
   bluetooth_callback(connection_service_peek_pebble_app_connection());
   
-  // icono central
+  // icono central TV
   s_icon_bitmap = gbitmap_create_with_resource(RESOURCE_ID_TVC);
   const GEdgeInsets icon_insets = {.top = 32, .right = ACTION_BAR_WIDTH, .bottom = 46, .left = ACTION_BAR_WIDTH / 3};
   s_icon_layer = bitmap_layer_create(grect_inset(bounds, icon_insets));
   bitmap_layer_set_bitmap(s_icon_layer, s_icon_bitmap);
   bitmap_layer_set_compositing_mode(s_icon_layer, GCompOpSet);
-//  layer_set_hidden(bitmap_layer_get_layer(s_icon_layer), !s_tv_screen_is_on);
   layer_add_child(window_layer, bitmap_layer_get_layer(s_icon_layer));
+
+  // layer central pantalla negra TV
+  const GEdgeInsets tv_screen_insets = {.top = 65, .right = ACTION_BAR_WIDTH+32, .bottom = 57, .left = ACTION_BAR_WIDTH / 3 +20};
+  s_tv_screen_layer = text_layer_create(grect_inset(bounds, tv_screen_insets));
+  text_layer_set_background_color(s_tv_screen_layer, GColorBlack);
+  layer_set_hidden(text_layer_get_layer(s_tv_screen_layer), s_tv_screen_is_on);
+  layer_add_child(window_layer, text_layer_get_layer(s_tv_screen_layer));
 
   // barra de volumen
   bars_layer = layer_create(layer_get_frame(window_layer));
@@ -406,6 +413,7 @@ static void window_unload(Window *window) {
   text_layer_destroy(text_day_layer);
   action_bar_layer_destroy(s_action_bar_layer);
   bitmap_layer_destroy(s_icon_layer);
+  text_layer_destroy(s_tv_screen_layer);
   layer_destroy(bars_layer);
   layer_destroy(main_layer);
   layer_destroy(s_battery_layer);

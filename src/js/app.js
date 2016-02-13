@@ -199,6 +199,7 @@ Pebble.addEventListener("appmessage",
    function(e) {
       console.log("####Received Status: " + e.payload.status);
      if (e.payload.status == 100) {
+       // se pide el mute, y en la respuesta de este se pide el volumen secuencialmente
       getMute(pintaRespuestaMute);
      }
      else {
