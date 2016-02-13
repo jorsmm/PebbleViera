@@ -98,12 +98,17 @@ var send = function(key){
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+var pintaRespuestaVolumen = function(respuesta){
+  console.log(">>>>>pintaRespuestaVolumen ["+respuesta+"]");
+  sendMyMessage("v="+respuesta);
+};
+
 /**
  * Get the current volume value
  * 
  * @param  {Function} callback A function of the form function(volume) to return the volume value to
  */
-var getVolume = function(callback){
+var getVolume = function(){
 	submitRequest(
 		URL_RENDERING,
 		URN_RENDERING,
@@ -115,7 +120,7 @@ var getVolume = function(callback){
 				var match = regex.exec(data);
 				if(match !== null){
 					var volume = match[1];
-					callback(volume);
+					pintaRespuestaVolumen(volume);
 				}
         else {
           console.log(">>getVolume no encontrada respuesta esperada");
@@ -124,13 +129,18 @@ var getVolume = function(callback){
 		}
 	);
 };
+var pintaRespuestaMute = function(respuesta){
+  console.log(">>>>>pintaRespuestaMute ["+respuesta+"]");
+  sendMyMessage("m="+respuesta);
+  getVolume();
+};
 
 /**
  * Get the current mute setting
  * 
  * @param  {Function} callback A function of the form function(mute) to return the volume value to
  */
-var getMute = function(callback){
+var getMute = function(){
 	submitRequest(
 		URL_RENDERING,
 		URN_RENDERING,
@@ -143,7 +153,7 @@ var getMute = function(callback){
 				if(match !== null){
 					//var mute = (match[1] == '1');
           var mute = match[1];
-					callback(mute);
+					pintaRespuestaMute(mute);
 				}
         else {
           console.log(">>getMute no encontrada respuesta esperada");
@@ -173,16 +183,6 @@ function sendStatus(status) {
 	// also be called if your message send attempt times out.
 }
 
-var pintaRespuestaVolumen = function(respuesta){
-  console.log(">>>>>pintaRespuestaVolumen ["+respuesta+"]");
-  sendMyMessage("v="+respuesta);
-};
-var pintaRespuestaMute = function(respuesta){
-  console.log(">>>>>pintaRespuestaMute ["+respuesta+"]");
-  sendMyMessage("m="+respuesta);
-  getVolume(pintaRespuestaVolumen);
-};
-
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -200,7 +200,11 @@ Pebble.addEventListener("appmessage",
       console.log("####Received Status: " + e.payload.status);
      if (e.payload.status == 100) {
        // se pide el mute, y en la respuesta de este se pide el volumen secuencialmente
-      getMute(pintaRespuestaMute);
+      getMute();
+     }
+     else if (e.payload.status == 101) {
+       // se pide con delay porque se acaba de pedir encender: el mute, y en la respuesta de este se pide el volumen secuencialmente
+      setTimeout(getMute,500);
      }
      else {
       send(commands[e.payload.status]);

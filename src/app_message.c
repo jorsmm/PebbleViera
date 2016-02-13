@@ -72,8 +72,10 @@ bool startsWith(const char *pre, const char *str) {
 // Write message to buffer & send
 void send_message(int status){
   APP_LOG(APP_LOG_LEVEL_INFO, "send_message: %d", status);
-  s_last_status_sent=status;
-  s_status_pending=1;
+  if (status != 100) {
+    s_last_status_sent=status;
+    s_status_pending=1;
+  }
 	DictionaryIterator *iter;
 	app_message_outbox_begin(&iter);
 	dict_write_uint8(iter, STATUS_KEY, status);
@@ -145,9 +147,9 @@ void handle_minute_tick(struct tm *tick_time, TimeUnits units_changed) {
   strftime(day_text, sizeof(day_text), "%d", tick_time);
   text_layer_set_text(text_time_layer, time_text);
   text_layer_set_text(text_day_layer, day_text);
-  if (!s_tv_screen_is_on) {
+//  if (!s_tv_screen_is_on) {
     send_message(100);
-  }
+//  }
 }
 
 /////////////////////////////////////////////////////////////////////////
@@ -446,7 +448,7 @@ static void in_received_handler(DictionaryIterator *received, void *context) {
       	tv_screen_is_off();
     }
     if (s_last_status_sent==TVONOFF && (int)tuple->value->uint32 == 0) {
-      send_message(100);
+      send_message(101);
     }
 	}
 	tuple = dict_find(received, MESSAGE_KEY);
@@ -462,6 +464,8 @@ static void in_received_handler(DictionaryIterator *received, void *context) {
       APP_LOG(APP_LOG_LEVEL_DEBUG, "Received VOLUME: %u", s_volume);
       // si se recibe un volumen es que la TV está encendida
       tv_screen_is_on();
+      // por si acaso actualizar volumen
+      update_text();
     }
     else if (startsWith("m=",tuple->value->cstring)) {
       size_t lenstring = strlen(tuple->value->cstring);
@@ -473,7 +477,6 @@ static void in_received_handler(DictionaryIterator *received, void *context) {
       APP_LOG(APP_LOG_LEVEL_DEBUG, "Received MUTE: %u", s_mute);
       update_text();
     }
-
 	}
 }
 // Called when an incoming message from PebbleKitJS is dropped
