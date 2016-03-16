@@ -32,6 +32,9 @@ static int s_volume_status_pending=0;
 Layer *bars_layer;
 Layer *main_layer;
 
+static BitmapLayer *s_led_layer;
+static GBitmap *s_led_bitmap;
+
 static GContext* s_ctx;
 
 static int s_battery_level;
@@ -69,6 +72,15 @@ bool startsWith(const char *pre, const char *str) {
 
 /////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////
+void ledon() {
+    layer_set_hidden(bitmap_layer_get_layer(s_led_layer), false);
+}
+void ledoff() {
+    layer_set_hidden(bitmap_layer_get_layer(s_led_layer), true);
+}
+
+/////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////
 // Write message to buffer & send
 void send_message(int status){
   APP_LOG(APP_LOG_LEVEL_INFO, "send_message: %d", status);
@@ -79,11 +91,30 @@ void send_message(int status){
       s_volume_status_pending=1;
     }
   }
+  else {
+    if (s_volume_status_pending) {
+      APP_LOG(APP_LOG_LEVEL_WARNING, "NO ENVIAR send_message: %d", status);
+      return;
+    }
+    else {
+      s_volume_status_pending=1;
+    }
+  }
 	DictionaryIterator *iter;
 	app_message_outbox_begin(&iter);
 	dict_write_uint8(iter, STATUS_KEY, status);
 	dict_write_end(iter);
   app_message_outbox_send();
+  
+  ledon();  
+}
+
+/////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////
+static void accel_tap_handler(AccelAxisType axis, int32_t direction) {
+  // A tap event occured
+  APP_LOG(APP_LOG_LEVEL_INFO, "accel_tap_handler: axis=%d. dir=%d", axis, (int)direction);
+  send_message(100);
 }
 
 /////////////////////////////////////////////////////////////////////////
@@ -151,7 +182,7 @@ void handle_minute_tick(struct tm *tick_time, TimeUnits units_changed) {
   text_layer_set_text(text_time_layer, time_text);
   text_layer_set_text(text_day_layer, day_text);
 //  if (!s_tv_screen_is_on) {
-    send_message(100);
+//    send_message(100);
 //  }
 }
 
@@ -373,6 +404,14 @@ static void window_load(Window *window) {
   layer_set_hidden(text_layer_get_layer(s_tv_screen_layer), s_tv_screen_is_on);
   layer_add_child(window_layer, text_layer_get_layer(s_tv_screen_layer));
 
+  // boton led rojo
+  s_led_bitmap = gbitmap_create_with_resource(RESOURCE_ID_REDDOT);
+  s_led_layer = bitmap_layer_create(GRect(85, 76, 10, 10));
+  layer_set_hidden(bitmap_layer_get_layer(s_led_layer), true);
+  bitmap_layer_set_bitmap(s_led_layer, s_led_bitmap);
+  bitmap_layer_set_compositing_mode(s_led_layer, GCompOpSet);
+  layer_add_child(window_get_root_layer(window), bitmap_layer_get_layer(s_led_layer));
+  
   // barra de volumen
   bars_layer = layer_create(layer_get_frame(window_layer));
   layer_set_update_proc(bars_layer, bars_update_callback);
@@ -410,7 +449,7 @@ static void window_load(Window *window) {
   action_bar_layer_set_background_color(s_action_bar_layer, GColorBlack);
   action_bar_layer_add_to_window(s_action_bar_layer, window);
   // Set the click config provider:
-  action_bar_layer_set_click_config_provider(s_action_bar_layer,click_config_provider);
+  action_bar_layer_set_click_config_provider(s_action_bar_layer,click_config_provider);  
 }
 
 static void window_unload(Window *window) {
@@ -419,6 +458,8 @@ static void window_unload(Window *window) {
   text_layer_destroy(text_day_layer);
   action_bar_layer_destroy(s_action_bar_layer);
   bitmap_layer_destroy(s_icon_layer);
+  gbitmap_destroy(s_led_bitmap);
+  bitmap_layer_destroy(s_led_layer);
   text_layer_destroy(s_tv_screen_layer);
   layer_destroy(bars_layer);
   layer_destroy(main_layer);
@@ -443,6 +484,9 @@ static void window_unload(Window *window) {
 // Called when a message is received from PebbleKitJS
 static void in_received_handler(DictionaryIterator *received, void *context) {
 	Tuple *tuple;
+  
+  ledoff();
+
 	tuple = dict_find(received, STATUS_KEY);
 	if(tuple) {
     s_volume_status_pending=0;
@@ -515,6 +559,9 @@ void init(void) {
   connection_service_subscribe((ConnectionHandlers) {
     .pebble_app_connection_handler = bluetooth_callback
   });
+  // Subscribe to tap events
+  accel_tap_service_subscribe(accel_tap_handler);
+  
 //  s_volume = persist_exists(VOLUME_PKEY) ? persist_read_int(VOLUME_PKEY) : VOLUME_DEFAULT;
 }
 void deinit(void) {
@@ -524,7 +571,10 @@ void deinit(void) {
   battery_state_service_unsubscribe();
   tick_timer_service_unsubscribe();
   connection_service_unsubscribe();
-	window_destroy(s_main_window);
+  // Unsubscribe from tap events
+  accel_tap_service_unsubscribe();
+  //
+  window_destroy(s_main_window);
 }
 int main( void ) {
 	init();

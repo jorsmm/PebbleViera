@@ -13,6 +13,12 @@
     "resources": {
         "media": [
             {
+                "file": "images/red_dot3.png",
+                "name": "REDDOT",
+                "targetPlatforms": null,
+                "type": "bitmap"
+            },
+            {
                 "file": "images/battery.png",
                 "name": "IMAGE_BATTERY",
                 "targetPlatforms": null,
