@@ -1,5 +1,5 @@
 #include <pebble.h>
-	
+
 #define REPEAT_INTERVAL_MS 50
 #define MAX_BITMAPS 9
 
@@ -48,6 +48,7 @@ static BitmapLayer *s_bt_icon_layer;
 static GBitmap *s_bt_icon_bitmap;
 
 static bool s_tv_screen_is_on=false;
+static bool s_connection=false;
 
 static int s_last_status_sent=-1;
 
@@ -61,6 +62,8 @@ enum {
 };
 
 static int lateral=PBL_IF_RECT_ELSE(0, 25);
+
+void send_message(int status);
 
 /////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////
@@ -79,35 +82,6 @@ void ledoff() {
     layer_set_hidden(bitmap_layer_get_layer(s_led_layer), true);
 }
 
-/////////////////////////////////////////////////////////////////////////
-/////////////////////////////////////////////////////////////////////////
-// Write message to buffer & send
-void send_message(int status){
-  APP_LOG(APP_LOG_LEVEL_INFO, "send_message: %d", status);
-  if (status != 100) {
-    s_last_status_sent=status;
-    // se pulsa subir/bajar volumen
-    if (status == 1 || status ==3) {
-      s_volume_status_pending=1;
-    }
-  }
-  else {
-    if (s_volume_status_pending) {
-      APP_LOG(APP_LOG_LEVEL_WARNING, "NO ENVIAR send_message: %d", status);
-      return;
-    }
-    else {
-      s_volume_status_pending=1;
-    }
-  }
-	DictionaryIterator *iter;
-	app_message_outbox_begin(&iter);
-	dict_write_uint8(iter, STATUS_KEY, status);
-	dict_write_end(iter);
-  app_message_outbox_send();
-  
-  ledon();  
-}
 
 /////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////
@@ -163,7 +137,7 @@ static void battery_update_proc(Layer *layer, GContext *ctx) {
 /////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////
 void handle_minute_tick(struct tm *tick_time, TimeUnits units_changed) {
-  APP_LOG(APP_LOG_LEVEL_DEBUG, "handle_minute_tick");
+//  APP_LOG(APP_LOG_LEVEL_DEBUG, "handle_minute_tick");
 
   static char time_text[] = "00:00";
   static char day_text[] = "00";
@@ -252,8 +226,9 @@ static void update_action_bar_layer() {
 /////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////
 static void update_tv_layers() {
+  printf("s_tv_screen_is_on=%s s_connection%s", s_tv_screen_is_on ? "true" : "false", s_connection ? "true" : "false");
   layer_set_hidden(text_layer_get_layer(s_tv_screen_layer), s_tv_screen_is_on);
-  layer_set_hidden(text_layer_get_layer(s_label_layer), !s_tv_screen_is_on);
+  layer_set_hidden(text_layer_get_layer(s_label_layer), !s_tv_screen_is_on && s_connection);
   layer_set_hidden(main_layer, !s_tv_screen_is_on);
   layer_set_hidden(bars_layer, !s_tv_screen_is_on);
 }
@@ -271,7 +246,7 @@ static void tv_screen_is_on() {
 static void tv_screen_is_off() {
   APP_LOG(APP_LOG_LEVEL_DEBUG, "tv_screen_is_off: %d", s_tv_screen_is_on);
   if (s_tv_screen_is_on) {
-    APP_LOG(APP_LOG_LEVEL_INFO, "tv_screen_is_on: LA TV ESTA APAGADA");
+    APP_LOG(APP_LOG_LEVEL_INFO, "tv_screen_is_off: LA TV ESTA APAGADA");
     s_tv_screen_is_on = false;
     offset=2;
     update_action_bar_layer();
@@ -287,6 +262,9 @@ static void select_long_click_handler(ClickRecognizerRef recognizer, void *conte
   update_action_bar_layer();
 }
 static void increment_click_handler(ClickRecognizerRef recognizer, void *context) {
+  APP_LOG(APP_LOG_LEVEL_INFO, "increment_click_handler: %d",offset);
+  APP_LOG(APP_LOG_LEVEL_INFO, "s_volume_status_pending: %d",s_volume_status_pending);
+  
   // si se está en la parte de volumen
   if (offset==0) {
     if (s_volume_status_pending) {return;}
@@ -329,8 +307,106 @@ static void click_config_provider(void *context) {
   window_long_click_subscribe(BUTTON_ID_SELECT, 400, select_long_click_handler, NULL);
 }
 
-/////////////////////////////////////////////////////////////////////////
-/////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+// Write message to buffer & send
+void send_message(int status){
+  APP_LOG(APP_LOG_LEVEL_INFO, "send_message: %d", status);
+  if (status != 100) {
+    s_last_status_sent=status;
+    // se pulsa subir/bajar volumen
+    if (status == 1 || status ==3) {
+      APP_LOG(APP_LOG_LEVEL_ERROR, "send_message: %d poner s_volume_status_pending=1", status);
+      s_volume_status_pending=1;
+    }
+  }
+  else {
+    if (s_volume_status_pending) {
+      APP_LOG(APP_LOG_LEVEL_WARNING, "NO ENVIAR send_message: %d", status);
+      return;
+    }
+    else {
+      APP_LOG(APP_LOG_LEVEL_ERROR, "send_message: %d poner s_volume_status_pending=1", status);
+      s_volume_status_pending=1;
+    }
+  }
+	DictionaryIterator *iter;
+	app_message_outbox_begin(&iter);
+	dict_write_uint8(iter, STATUS_KEY, status);
+	dict_write_end(iter);
+  app_message_outbox_send();
+  
+  ledon();  
+}
+
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+// Called when a message is received from PebbleKitJS
+static void in_received_handler(DictionaryIterator *received, void *context) {
+	Tuple *tuple;
+  
+  ledoff();
+
+	tuple = dict_find(received, STATUS_KEY);
+	if(tuple) {
+    s_volume_status_pending=0;
+		APP_LOG(APP_LOG_LEVEL_DEBUG, "Received Status: %d", (int)tuple->value->uint32);
+    // recibido status indicando que la tv está apagada
+    if ((int)tuple->value->uint32 == 104) {
+      	tv_screen_is_off();
+    }
+    if (s_last_status_sent==TVONOFF && (int)tuple->value->uint32 == 0) {
+      send_message(101);
+    }
+	}
+	tuple = dict_find(received, MESSAGE_KEY);
+	if(tuple) {
+		APP_LOG(APP_LOG_LEVEL_DEBUG, "Received Message: %s", tuple->value->cstring);
+    if (startsWith("v=",tuple->value->cstring)) {
+      size_t lenstring = strlen(tuple->value->cstring);
+      int tamano=lenstring-2;
+      char svolume[tamano+1];
+      memcpy( svolume, &tuple->value->cstring[2], tamano );
+      svolume[tamano] = '\0';
+      s_volume = atoi( svolume );
+      APP_LOG(APP_LOG_LEVEL_DEBUG, "Received VOLUME: %u", s_volume);
+      s_volume_status_pending=0;
+      // si se recibe un volumen es que la TV está encendida
+      tv_screen_is_on();
+      // por si acaso actualizar volumen
+      update_text();
+    }
+    else if (startsWith("m=",tuple->value->cstring)) {
+      size_t lenstring = strlen(tuple->value->cstring);
+      int tamano=lenstring-2;
+      char smute[tamano+1];
+      memcpy( smute, &tuple->value->cstring[2], tamano );
+      smute[tamano] = '\0';
+      s_mute = atoi( smute );
+      APP_LOG(APP_LOG_LEVEL_DEBUG, "Received MUTE: %u", s_mute);
+      update_text();
+    }
+    else if (startsWith("i=",tuple->value->cstring)) {
+      APP_LOG(APP_LOG_LEVEL_INFO, "Received JS Ready");
+      send_message(100);
+    }
+	}
+}
+// Called when an incoming message from PebbleKitJS is dropped
+static void in_dropped_handler(AppMessageResult reason, void *context) {	
+}
+// Called when PebbleKitJS does not acknowledge receipt of a message
+static void out_failed_handler(DictionaryIterator *failed, AppMessageResult reason, void *context) {
+}
+
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 static void window_load(Window *window) {
   Layer *window_layer = window_get_root_layer(window);
   GRect bounds = layer_get_bounds(window_layer);
@@ -478,64 +554,8 @@ static void window_unload(Window *window) {
   s_main_window = NULL;
 }
 
-/////////////////////////////////////////////////////////////////////////
-/////////////////////////////////////////////////////////////////////////
-
-// Called when a message is received from PebbleKitJS
-static void in_received_handler(DictionaryIterator *received, void *context) {
-	Tuple *tuple;
-  
-  ledoff();
-
-	tuple = dict_find(received, STATUS_KEY);
-	if(tuple) {
-    s_volume_status_pending=0;
-		APP_LOG(APP_LOG_LEVEL_DEBUG, "Received Status: %d", (int)tuple->value->uint32);
-    // recibido status indicando que la tv está apagada
-    if ((int)tuple->value->uint32 == 104) {
-      	tv_screen_is_off();
-    }
-    if (s_last_status_sent==TVONOFF && (int)tuple->value->uint32 == 0) {
-      send_message(101);
-    }
-	}
-	tuple = dict_find(received, MESSAGE_KEY);
-	if(tuple) {
-		APP_LOG(APP_LOG_LEVEL_DEBUG, "Received Message: %s", tuple->value->cstring);
-    if (startsWith("v=",tuple->value->cstring)) {
-      size_t lenstring = strlen(tuple->value->cstring);
-      int tamano=lenstring-2;
-      char svolume[tamano+1];
-      memcpy( svolume, &tuple->value->cstring[2], tamano );
-      svolume[tamano] = '\0';
-      s_volume = atoi( svolume );
-      APP_LOG(APP_LOG_LEVEL_DEBUG, "Received VOLUME: %u", s_volume);
-      // si se recibe un volumen es que la TV está encendida
-      tv_screen_is_on();
-      // por si acaso actualizar volumen
-      update_text();
-    }
-    else if (startsWith("m=",tuple->value->cstring)) {
-      size_t lenstring = strlen(tuple->value->cstring);
-      int tamano=lenstring-2;
-      char smute[tamano+1];
-      memcpy( smute, &tuple->value->cstring[2], tamano );
-      smute[tamano] = '\0';
-      s_mute = atoi( smute );
-      APP_LOG(APP_LOG_LEVEL_DEBUG, "Received MUTE: %u", s_mute);
-      update_text();
-    }
-	}
-}
-// Called when an incoming message from PebbleKitJS is dropped
-static void in_dropped_handler(AppMessageResult reason, void *context) {	
-}
-// Called when PebbleKitJS does not acknowledge receipt of a message
-static void out_failed_handler(DictionaryIterator *failed, AppMessageResult reason, void *context) {
-}
-
-/////////////////////////////////////////////////////////////////////////
-/////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 void init(void) {
   APP_LOG(APP_LOG_LEVEL_DEBUG, ">>>Init");
@@ -561,7 +581,7 @@ void init(void) {
   });
   // Subscribe to tap events
   accel_tap_service_subscribe(accel_tap_handler);
-  
+
 //  s_volume = persist_exists(VOLUME_PKEY) ? persist_read_int(VOLUME_PKEY) : VOLUME_DEFAULT;
 }
 void deinit(void) {

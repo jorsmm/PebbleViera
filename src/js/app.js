@@ -30,7 +30,7 @@ function submitRequest (url, urn, action, options) {
 "  </u:"+action+">\n"+
 " </s:Body>\n"+
 "</s:Envelope>\n";
-  console.log('###submitRequest ['+command_str+']');
+//  console.log('###submitRequest ['+command_str+']');
 
   var req = new XMLHttpRequest();
   req.open('POST', 'http://'+ipAddress+':'+port+url);
@@ -40,7 +40,7 @@ function submitRequest (url, urn, action, options) {
     console.log(">>>>>>>>>>##readyState##"+req.readyState);
     if (req.readyState === 4) {
       if (req.status === 200) {
-        console.log("##respuesta##"+req.responseText);
+        //console.log("##respuesta##"+req.responseText);
         console.log("##options##"+options+","+options.hasOwnProperty('callback'));
         if(options.hasOwnProperty('callback')){
           console.log("##llamar a callback##");
@@ -64,6 +64,9 @@ function submitRequest (url, urn, action, options) {
   req.timeout = 2000;
   req.ontimeout = function () { 
     console.log('Error de TIMEOUT. Enviar status 102'); 
+    //jsmm 02/06/2016 para probar falsear como que me ha llegado volumen, descomentar 2 lineas siguientes y comentar la última de 102
+    //console.log('Error de TIMEOUT. falsear enviando volumen 8'); 
+    //pintaRespuestaVolumen(8);
     sendStatus(102);
   };
   req.send(command_str);
@@ -78,12 +81,14 @@ function submitRequest (url, urn, action, options) {
  * @param  {String} state <ON|OFF|ONOFF>
  */
 var sendKey = function(key, state){
+  var command=">NRC_"+key+"-"+state;
+  console.log("sendkey ["+command+"]");
 	submitRequest(
 		URL_NETWORK, 
 		URN_NETWORK, 
 		ACTION_SENDKEY, 
 		{
-			args: "<"+ARG_SENDKEY+">NRC_"+key+"-"+state+"</"+ARG_SENDKEY+">"
+			args: "<"+ARG_SENDKEY+command+"</"+ARG_SENDKEY+">"
 		}
 	);
 };
@@ -190,7 +195,8 @@ function sendStatus(status) {
 // Called when JS is ready
 Pebble.addEventListener("ready",
    function(e) {
-      console.log("##2##Event Ready");
+      console.log("##JS##Ready");
+      sendMyMessage("i=true");
    }
 );
 
