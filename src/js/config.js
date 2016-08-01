@@ -5,7 +5,7 @@ module.exports = [
   }, 
   { 
     "type": "text", 
-    "defaultValue": "IP addres of your Viera TV must be stablished.<p/>It's not possible to autodetect 😞. I recommend configuring static IP on your TV" 
+    "defaultValue": "IP address of your Viera TV must be configured.<p/>It's not possible to autodetect 😞. I recommend you configuring static IP on your TV" 
   },
   {
     "type": "section",
