@@ -1,3 +1,12 @@
+var Clay = require('pebble-clay');
+var clayConfig = require('./config');
+var clay = new Clay(clayConfig);
+var messageKeys = require('message_keys');
+
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 var commands=['','VOLUP','MUTE','VOLDOWN',
                  'CH_UP','TV','CH_DOWN',
                  'CHG_INPUT','POWER','INFO'];                            
@@ -16,6 +25,12 @@ var ACTION_GETVOLUME	= 'GetVolume';
 var ACTION_GETMUTE		= 'GetMute';
 // args
 var ARG_SENDKEY			= 'X_KeyEvent';
+
+var STATUS_CONSULTAR_ESTADO_MUTE_Y_VOLUMEN = 100;
+var STATUS_CONSULTAR_ESTADO_MUTE_Y_VOLUMEN_CON_DELAY = 101;
+var STATUS_ENVIAR_TV_APAGADA = 204;
+var STATUS_ENVIAR_ERROR = 201;
+var STATUS_ENVIAR_ERROR_TIMEOUT = 202;
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -37,37 +52,41 @@ function submitRequest (url, urn, action, options) {
   req.setRequestHeader("Content-Type", "text/xml; charset=utf-8");
   req.setRequestHeader("SOAPACTION", '"urn:'+urn+'#'+action+'"');
   req.onload = function () {
-    console.log(">>>>>>>>>>##readyState##"+req.readyState);
+    console.log("["+action+"]>>>>>>>>>>##readyState##"+req.readyState);
     if (req.readyState === 4) {
       if (req.status === 200) {
         //console.log("##respuesta##"+req.responseText);
-        console.log("##options##"+options+","+options.hasOwnProperty('callback'));
+        console.log("["+action+"]##options##"+options+","+options.hasOwnProperty('callback'));
         if(options.hasOwnProperty('callback')){
-          console.log("##llamar a callback##");
+          console.log("["+action+"]##llamar a callback##");
           options.callback(req.responseText);
         }
         else {
-          console.log("##No hay Callback: Enviar Status OK (0)##");
+          console.log("["+action+"]##No hay Callback: Enviar Status OK (0)##");
           sendStatus(0);
         }
       } 
       else if (req.status === 400) {
-        console.log('Error 400, Enviar que La TV está apagada (104):'+req.status+","+req.statusText);
-        sendStatus(104);
+        console.log("["+action+"]Error 400, Enviar que La TV está apagada ("+STATUS_ENVIAR_TV_APAGADA+"):"+req.status+","+req.statusText);
+        sendStatus(STATUS_ENVIAR_TV_APAGADA);
       }
       else {
-        console.log('Error:'+req.status+","+req.statusText);
-        sendStatus(101);
+        console.log("["+action+"]Error:"+req.status+","+req.statusText);
+        sendStatus(STATUS_ENVIAR_ERROR);
       }
     }
   };
   req.timeout = 2000;
   req.ontimeout = function () { 
-    console.log('Error de TIMEOUT. Enviar status 102'); 
-    //jsmm 02/06/2016 para probar falsear como que me ha llegado volumen, descomentar 2 lineas siguientes y comentar la última de 102
+    //jsmm 02/06/2016 para probar falsear como que me ha llegado volumen, descomentar 2 lineas siguientes y comentar la última de STATUS_ENVIAR_ERROR_TIMEOUT
     //console.log('Error de TIMEOUT. falsear enviando volumen 8'); 
     //pintaRespuestaVolumen(8);
-    sendStatus(102);
+    console.log("["+action+"]Error de TIMEOUT. Enviar status "+STATUS_ENVIAR_ERROR_TIMEOUT); 
+    sendStatus(STATUS_ENVIAR_ERROR_TIMEOUT);
+  };
+  req.onerror = function () { 
+    console.log("["+action+"]Error. Enviar status "+STATUS_ENVIAR_ERROR); 
+    sendStatus(STATUS_ENVIAR_ERROR);
   };
   req.send(command_str);
 }
@@ -98,6 +117,7 @@ var sendKey = function(key, state){
  * @param  {String} key   The key that has been released
  */
 var send = function(key){
+  console.log("send ["+key+"]");
 	sendKey(key,'ONOFF');
 };
 
@@ -114,6 +134,7 @@ var pintaRespuestaVolumen = function(respuesta){
  * @param  {Function} callback A function of the form function(volume) to return the volume value to
  */
 var getVolume = function(){
+  console.log("getVolume");
 	submitRequest(
 		URL_RENDERING,
 		URN_RENDERING,
@@ -146,6 +167,7 @@ var pintaRespuestaMute = function(respuesta){
  * @param  {Function} callback A function of the form function(mute) to return the volume value to
  */
 var getMute = function(){
+  console.log("getMute");
 	submitRequest(
 		URL_RENDERING,
 		URN_RENDERING,
@@ -195,25 +217,36 @@ function sendStatus(status) {
 // Called when JS is ready
 Pebble.addEventListener("ready",
    function(e) {
-      console.log("##JS##Ready");
-      sendMyMessage("i=true");
+      console.log("####JavaScript Ready");
+      sendMyMessage("init=true");
    }
 );
 
 // Called when incoming message from the Pebble is received
 Pebble.addEventListener("appmessage",
    function(e) {
-      console.log("####Received Status: " + e.payload.status);
-     if (e.payload.status == 100) {
+     console.log("####Received Status from Wath: " + e.payload.status);
+     if (e.payload.status == STATUS_CONSULTAR_ESTADO_MUTE_Y_VOLUMEN) {
        // se pide el mute, y en la respuesta de este se pide el volumen secuencialmente
-      getMute();
+       getMute();
      }
-     else if (e.payload.status == 101) {
+     else if (e.payload.status == STATUS_CONSULTAR_ESTADO_MUTE_Y_VOLUMEN_CON_DELAY) {
        // se pide con delay porque se acaba de pedir encender: el mute, y en la respuesta de este se pide el volumen secuencialmente
-      setTimeout(getMute,500);
+       setTimeout(getMute,500);
      }
      else {
-      send(commands[e.payload.status]);
+       send(commands[e.payload.status]);
      }
    }
 );
+
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// called when config page is closed
+Pebble.addEventListener('webviewclosed', function(e) {
+  var claySettings = clay.getSettings(e.response);
+  ipAddress=claySettings[messageKeys.ipaddr];
+  console.log('IP Addr is ' + ipAddress);
+  port=claySettings[messageKeys.port];
+  console.log('Port is ' + port);
+});

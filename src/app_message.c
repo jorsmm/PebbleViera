@@ -10,6 +10,11 @@
 #define VOLUME_PKEY 1
 #define VOLUME_DEFAULT 0
 
+#define STATUS_CONSULTAR_ESTADO_MUTE_Y_VOLUMEN 100
+#define STATUS_CONSULTAR_ESTADO_MUTE_Y_VOLUMEN_CON_DELAY 101
+
+#define STATUS_RECIBIDO_TV_APAGADA 204
+
 static Window *s_main_window;
 static TextLayer *s_label_layer;
 static TextLayer *text_time_layer;
@@ -55,18 +60,38 @@ static int s_last_status_sent=-1;
 // status a enviar para encender/apagar TV
 static int TVONOFF=8;
 
-// Key values for AppMessage Dictionary
-enum {
-	STATUS_KEY = 0,	
-	MESSAGE_KEY = 1
-};
-
 static int lateral=PBL_IF_RECT_ELSE(0, 25);
 
-void send_message(int status);
+bool startsWith(const char *pre, const char *str);
+void ledon();
+void ledoff();
+static void accel_tap_handler(AccelAxisType axis, int32_t direction);
+static void battery_callback(BatteryChargeState state);
+static void bluetooth_callback(bool connected);
+static void battery_update_proc(Layer *layer, GContext *ctx);
+void handle_minute_tick(struct tm *tick_time, TimeUnits units_changed);
+void bars_update_callback(Layer *me, GContext* ctx);
+void progress_update_callback(Layer *me, GContext* ctx);
+static void update_text();
+static void update_action_bar_layer();
+static void update_tv_layers();
+static void tv_screen_is_on();
+static void tv_screen_is_off();
+static void select_long_click_handler(ClickRecognizerRef recognizer, void *context);
+static void increment_click_handler(ClickRecognizerRef recognizer, void *context);
+static void select_click_handler(ClickRecognizerRef recognizer, void *context);
+static void decrement_click_handler(ClickRecognizerRef recognizer, void *context);
+static void click_config_provider(void *context);
 
-/////////////////////////////////////////////////////////////////////////
-/////////////////////////////////////////////////////////////////////////
+void send_message_to_phone(int status);
+static void in_received_handler(DictionaryIterator *received, void *context);
+static void in_dropped_handler(AppMessageResult reason, void *context);
+static void out_failed_handler(DictionaryIterator *failed, AppMessageResult reason, void *context);
+
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 bool startsWith(const char *pre, const char *str) {
     size_t lenpre = strlen(pre),
            lenstr = strlen(str);
@@ -82,13 +107,12 @@ void ledoff() {
     layer_set_hidden(bitmap_layer_get_layer(s_led_layer), true);
 }
 
-
 /////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////
 static void accel_tap_handler(AccelAxisType axis, int32_t direction) {
   // A tap event occured
   APP_LOG(APP_LOG_LEVEL_INFO, "accel_tap_handler: axis=%d. dir=%d", axis, (int)direction);
-  send_message(100);
+  send_message_to_phone(STATUS_CONSULTAR_ESTADO_MUTE_Y_VOLUMEN);
 }
 
 /////////////////////////////////////////////////////////////////////////
@@ -101,7 +125,6 @@ static void battery_callback(BatteryChargeState state) {
 static void bluetooth_callback(bool connected) {
   // Show icon if disconnected
   layer_set_hidden(bitmap_layer_get_layer(s_bt_icon_layer), connected);
-
   if(!connected) {
     // Issue a vibrating alert
     vibes_double_pulse();
@@ -137,12 +160,9 @@ static void battery_update_proc(Layer *layer, GContext *ctx) {
 /////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////
 void handle_minute_tick(struct tm *tick_time, TimeUnits units_changed) {
-//  APP_LOG(APP_LOG_LEVEL_DEBUG, "handle_minute_tick");
-
   static char time_text[] = "00:00";
   static char day_text[] = "00";
   char *time_format;
-  //Time
   if (clock_is_24h_style()) {
     time_format = "%R";
   } else {
@@ -155,9 +175,6 @@ void handle_minute_tick(struct tm *tick_time, TimeUnits units_changed) {
   strftime(day_text, sizeof(day_text), "%d", tick_time);
   text_layer_set_text(text_time_layer, time_text);
   text_layer_set_text(text_day_layer, day_text);
-//  if (!s_tv_screen_is_on) {
-//    send_message(100);
-//  }
 }
 
 /////////////////////////////////////////////////////////////////////////
@@ -255,18 +272,20 @@ static void tv_screen_is_off() {
   }
 }
 
-/////////////////////////////////////////////////////////////////////////
-/////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 static void select_long_click_handler(ClickRecognizerRef recognizer, void *context) {
   offset=(offset+1)%(MAX_BITMAPS/3);
   update_action_bar_layer();
 }
 static void increment_click_handler(ClickRecognizerRef recognizer, void *context) {
   APP_LOG(APP_LOG_LEVEL_INFO, "increment_click_handler: %d",offset);
-  APP_LOG(APP_LOG_LEVEL_INFO, "s_volume_status_pending: %d",s_volume_status_pending);
   
   // si se está en la parte de volumen
   if (offset==0) {
+    APP_LOG(APP_LOG_LEVEL_DEBUG, "s_volume_status_pending: %d",s_volume_status_pending);
     if (s_volume_status_pending) {return;}
     if (s_volume<100) {
       s_volume++;
@@ -277,17 +296,19 @@ static void increment_click_handler(ClickRecognizerRef recognizer, void *context
     }
   }
   update_text();
-  send_message(offset*3+0x1);
+  send_message_to_phone(offset*3+0x1);
 }
 static void select_click_handler(ClickRecognizerRef recognizer, void *context) {
   if (offset==0) {
     s_mute=(s_mute+1)%2;
   }
-  send_message(offset*3+0x2);
+  send_message_to_phone(offset*3+0x2);
   update_text();
 }
 static void decrement_click_handler(ClickRecognizerRef recognizer, void *context) {
+  APP_LOG(APP_LOG_LEVEL_INFO, "decrement_click_handler: %d",offset);
   if (offset==0) {
+    APP_LOG(APP_LOG_LEVEL_DEBUG, "s_volume_status_pending: %d",s_volume_status_pending);
     if (s_volume_status_pending) {return;}
     if (s_volume>0) {
       s_mute=0;
@@ -298,7 +319,7 @@ static void decrement_click_handler(ClickRecognizerRef recognizer, void *context
     }
   }
   update_text();
-  send_message(offset*3+0x3);
+  send_message_to_phone(offset*3+0x3);
 }
 static void click_config_provider(void *context) {
   window_single_repeating_click_subscribe(BUTTON_ID_UP, REPEAT_INTERVAL_MS, increment_click_handler);
@@ -313,33 +334,34 @@ static void click_config_provider(void *context) {
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 // Write message to buffer & send
-void send_message(int status){
-  APP_LOG(APP_LOG_LEVEL_INFO, "send_message: %d", status);
-  if (status != 100) {
+void send_message_to_phone(int status){
+  APP_LOG(APP_LOG_LEVEL_INFO, "send_message_to_phone: %d", status);
+  if (status != STATUS_CONSULTAR_ESTADO_MUTE_Y_VOLUMEN) {
     s_last_status_sent=status;
     // se pulsa subir/bajar volumen
     if (status == 1 || status ==3) {
-      APP_LOG(APP_LOG_LEVEL_ERROR, "send_message: %d poner s_volume_status_pending=1", status);
+      APP_LOG(APP_LOG_LEVEL_ERROR, "send_message_to_phone: %d poner s_volume_status_pending=1", status);
       s_volume_status_pending=1;
     }
   }
   else {
     if (s_volume_status_pending) {
-      APP_LOG(APP_LOG_LEVEL_WARNING, "NO ENVIAR send_message: %d", status);
+      APP_LOG(APP_LOG_LEVEL_WARNING, "send_message_to_phone. NO ENVIAR: %d", status);
       return;
     }
     else {
-      APP_LOG(APP_LOG_LEVEL_ERROR, "send_message: %d poner s_volume_status_pending=1", status);
+      APP_LOG(APP_LOG_LEVEL_ERROR, "send_message_to_phone: %d poner s_volume_status_pending=1", status);
       s_volume_status_pending=1;
     }
   }
-	DictionaryIterator *iter;
+
+  ledon();
+
+  DictionaryIterator *iter;
 	app_message_outbox_begin(&iter);
-	dict_write_uint8(iter, STATUS_KEY, status);
+	dict_write_uint8(iter, MESSAGE_KEY_status, status);
 	dict_write_end(iter);
   app_message_outbox_send();
-  
-  ledon();  
 }
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -349,23 +371,26 @@ void send_message(int status){
 static void in_received_handler(DictionaryIterator *received, void *context) {
 	Tuple *tuple;
   
-  ledoff();
+	APP_LOG(APP_LOG_LEVEL_DEBUG, "Received DictionaryIterator from Phone");
 
-	tuple = dict_find(received, STATUS_KEY);
+  // mensajes con la parte JavaScript
+	tuple = dict_find(received, MESSAGE_KEY_status);
 	if(tuple) {
+    ledoff();
     s_volume_status_pending=0;
-		APP_LOG(APP_LOG_LEVEL_DEBUG, "Received Status: %d", (int)tuple->value->uint32);
+		APP_LOG(APP_LOG_LEVEL_DEBUG, "   Received Status from Phone: %d", (int)tuple->value->uint32);
     // recibido status indicando que la tv está apagada
-    if ((int)tuple->value->uint32 == 104) {
+    if ((int)tuple->value->uint32 == STATUS_RECIBIDO_TV_APAGADA) {
       	tv_screen_is_off();
     }
     if (s_last_status_sent==TVONOFF && (int)tuple->value->uint32 == 0) {
-      send_message(101);
+      send_message_to_phone(STATUS_CONSULTAR_ESTADO_MUTE_Y_VOLUMEN_CON_DELAY);
     }
 	}
-	tuple = dict_find(received, MESSAGE_KEY);
+	tuple = dict_find(received, MESSAGE_KEY_message);
 	if(tuple) {
-		APP_LOG(APP_LOG_LEVEL_DEBUG, "Received Message: %s", tuple->value->cstring);
+    ledoff();
+		APP_LOG(APP_LOG_LEVEL_DEBUG, "   Received Message from Phone: %s", tuple->value->cstring);
     if (startsWith("v=",tuple->value->cstring)) {
       size_t lenstring = strlen(tuple->value->cstring);
       int tamano=lenstring-2;
@@ -373,7 +398,7 @@ static void in_received_handler(DictionaryIterator *received, void *context) {
       memcpy( svolume, &tuple->value->cstring[2], tamano );
       svolume[tamano] = '\0';
       s_volume = atoi( svolume );
-      APP_LOG(APP_LOG_LEVEL_DEBUG, "Received VOLUME: %u", s_volume);
+      APP_LOG(APP_LOG_LEVEL_INFO, "   Received VOLUME: %u", s_volume);
       s_volume_status_pending=0;
       // si se recibe un volumen es que la TV está encendida
       tv_screen_is_on();
@@ -387,13 +412,23 @@ static void in_received_handler(DictionaryIterator *received, void *context) {
       memcpy( smute, &tuple->value->cstring[2], tamano );
       smute[tamano] = '\0';
       s_mute = atoi( smute );
-      APP_LOG(APP_LOG_LEVEL_DEBUG, "Received MUTE: %u", s_mute);
+      APP_LOG(APP_LOG_LEVEL_INFO, "   Received MUTE: %u", s_mute);
       update_text();
     }
-    else if (startsWith("i=",tuple->value->cstring)) {
-      APP_LOG(APP_LOG_LEVEL_INFO, "Received JS Ready");
-      send_message(100);
+    else if (startsWith("init=",tuple->value->cstring)) {
+      APP_LOG(APP_LOG_LEVEL_INFO, "   Received JS Ready");
+      send_message_to_phone(STATUS_CONSULTAR_ESTADO_MUTE_Y_VOLUMEN);
     }
+	}
+  // valores de configuracion
+	tuple = dict_find(received, MESSAGE_KEY_ipaddr);
+	if(tuple) {
+		APP_LOG(APP_LOG_LEVEL_INFO, "   Received IP Address configuration value from Phone: %s", tuple->value->cstring);
+//    persist_write_string(PKEY_IPADDR,tuple->value->cstring);
+	}
+	tuple = dict_find(received, MESSAGE_KEY_port);
+	if(tuple) {
+		APP_LOG(APP_LOG_LEVEL_INFO, "   Received Port configuration value from Phone: %s", tuple->value->cstring);
 	}
 }
 // Called when an incoming message from PebbleKitJS is dropped
@@ -558,7 +593,7 @@ static void window_unload(Window *window) {
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 void init(void) {
-  APP_LOG(APP_LOG_LEVEL_DEBUG, ">>>Init");
+  APP_LOG(APP_LOG_LEVEL_INFO, ">>>Init");
   s_main_window = window_create();
     window_set_background_color(s_main_window, PBL_IF_COLOR_ELSE(GColorWhite , GColorWhite));
     window_set_window_handlers(s_main_window, (WindowHandlers) {
@@ -585,15 +620,13 @@ void init(void) {
 //  s_volume = persist_exists(VOLUME_PKEY) ? persist_read_int(VOLUME_PKEY) : VOLUME_DEFAULT;
 }
 void deinit(void) {
-  APP_LOG(APP_LOG_LEVEL_DEBUG, "<<<DeInit");
+  APP_LOG(APP_LOG_LEVEL_INFO, "<<<DeInit");
 //  persist_write_int(VOLUME_PKEY, s_volume);
 	app_message_deregister_callbacks();
   battery_state_service_unsubscribe();
   tick_timer_service_unsubscribe();
   connection_service_unsubscribe();
-  // Unsubscribe from tap events
   accel_tap_service_unsubscribe();
-  //
   window_destroy(s_main_window);
 }
 int main( void ) {
