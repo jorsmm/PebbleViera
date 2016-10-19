@@ -62,6 +62,10 @@ static int TVONOFF=8;
 
 static int lateral=PBL_IF_RECT_ELSE(0, 25);
 
+#ifdef PBL_PLATFORM_EMERY
+#else
+#endif
+
 bool startsWith(const char *pre, const char *str);
 void ledon();
 void ledoff();
@@ -148,7 +152,7 @@ static void battery_update_proc(Layer *layer, GContext *ctx) {
       graphics_context_set_fill_color(ctx, GColorGreen);
     }
     else {
-      graphics_context_set_fill_color(ctx, GColorRed);      
+      graphics_context_set_fill_color(ctx, GColorRed);
     }
   }
   graphics_fill_rect(ctx, GRect(0, 0, width, bounds.size.h), 0, GCornerNone);
@@ -195,7 +199,7 @@ void bars_update_callback(Layer *me, GContext* ctx) {
   }
 }
 void progress_update_callback(Layer *me, GContext* ctx) {
-  s_ctx=ctx;  
+  s_ctx=ctx;
   if (offset==0) {
     layer_set_hidden (me, false);
     if (s_mute==1) {
@@ -236,9 +240,9 @@ static void update_action_bar_layer() {
   layer_mark_dirty(bars_layer);
   action_bar_layer_set_icon(s_action_bar_layer, BUTTON_ID_UP, table[offset*3]);
   action_bar_layer_set_icon(s_action_bar_layer, BUTTON_ID_SELECT, table[(offset*3)+1]);
-  action_bar_layer_set_icon(s_action_bar_layer, BUTTON_ID_DOWN, table[(offset*3)+2]); 
+  action_bar_layer_set_icon(s_action_bar_layer, BUTTON_ID_DOWN, table[(offset*3)+2]);
   update_text();
-} 
+}
 
 /////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////
@@ -282,7 +286,7 @@ static void select_long_click_handler(ClickRecognizerRef recognizer, void *conte
 }
 static void increment_click_handler(ClickRecognizerRef recognizer, void *context) {
   APP_LOG(APP_LOG_LEVEL_INFO, "increment_click_handler: %d",offset);
-  
+
   // si se está en la parte de volumen
   if (offset==0) {
     APP_LOG(APP_LOG_LEVEL_DEBUG, "s_volume_status_pending: %d",s_volume_status_pending);
@@ -324,7 +328,7 @@ static void decrement_click_handler(ClickRecognizerRef recognizer, void *context
 static void click_config_provider(void *context) {
   window_single_repeating_click_subscribe(BUTTON_ID_UP, REPEAT_INTERVAL_MS, increment_click_handler);
   window_single_repeating_click_subscribe(BUTTON_ID_DOWN, REPEAT_INTERVAL_MS, decrement_click_handler);
-  window_single_click_subscribe(BUTTON_ID_SELECT, select_click_handler); 
+  window_single_click_subscribe(BUTTON_ID_SELECT, select_click_handler);
   window_long_click_subscribe(BUTTON_ID_SELECT, 400, select_long_click_handler, NULL);
 }
 
@@ -370,7 +374,7 @@ void send_message_to_phone(int status){
 // Called when a message is received from PebbleKitJS
 static void in_received_handler(DictionaryIterator *received, void *context) {
 	Tuple *tuple;
-  
+
 	APP_LOG(APP_LOG_LEVEL_DEBUG, "Received DictionaryIterator from Phone");
 
   // mensajes con la parte JavaScript
@@ -432,7 +436,7 @@ static void in_received_handler(DictionaryIterator *received, void *context) {
 	}
 }
 // Called when an incoming message from PebbleKitJS is dropped
-static void in_dropped_handler(AppMessageResult reason, void *context) {	
+static void in_dropped_handler(AppMessageResult reason, void *context) {
 }
 // Called when PebbleKitJS does not acknowledge receipt of a message
 static void out_failed_handler(DictionaryIterator *failed, AppMessageResult reason, void *context) {
@@ -444,7 +448,7 @@ static void out_failed_handler(DictionaryIterator *failed, AppMessageResult reas
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 static void window_load(Window *window) {
   Layer *window_layer = window_get_root_layer(window);
-  GRect bounds = layer_get_bounds(window_layer);
+  GRect bounds = layer_get_unobstructed_bounds(window_layer);
 
 #ifdef PBL_SDK_3
   // Set up the status bar last to ensure it is on top of other Layers
@@ -452,10 +456,13 @@ static void window_load(Window *window) {
 //  layer_add_child(window_layer, status_bar_layer_get_layer(s_status_bar));
 //  status_bar_layer_set_colors(s_status_bar, GColorGreen, GColorBlack);
 #endif
-  
+
   // el dia
-  const GEdgeInsets day_insets = {.top = -5, .right = 117, .bottom = 140, .left = -2 + lateral };
-  text_day_layer = text_layer_create(grect_inset(bounds, day_insets));
+//  const GEdgeInsets day_insets = {.top = -5, .right = 117, .bottom = 140, .left = -2 + lateral };
+
+APP_LOG(APP_LOG_LEVEL_ERROR, "ACTION_BAR_WIDTH=%d", ACTION_BAR_WIDTH);
+
+  text_day_layer = text_layer_create(GRect(-2+lateral, -5, 26, 30));
   text_layer_set_background_color(text_day_layer, GColorBlue);
   text_layer_set_text_color (text_day_layer, GColorWhite);
   text_layer_set_text_alignment(text_day_layer, GTextAlignmentCenter);
@@ -471,17 +478,18 @@ static void window_load(Window *window) {
   text_layer_set_font(text_time_layer, fonts_get_system_font(FONT_KEY_GOTHIC_28_BOLD));
   layer_add_child(window_layer, text_layer_get_layer(text_time_layer));
 
-    // Create battery meter Layer
+  int right_x=bounds.size.w - ACTION_BAR_WIDTH - 28;
+  // Create battery meter Layer
   s_battery_icon_bitmap = gbitmap_create_with_resource(RESOURCE_ID_IMAGE_BATTERY);
-  s_battery_icon_layer = bitmap_layer_create(GRect(88, 2, 24, 24));
+  s_battery_icon_layer = bitmap_layer_create(GRect(right_x, 2, 24, 24));
   bitmap_layer_set_bitmap(s_battery_icon_layer, s_battery_icon_bitmap);
   layer_add_child(window_get_root_layer(window), bitmap_layer_get_layer(s_battery_icon_layer));
 
-  s_battery_layer = layer_create(GRect(90, 10, 19, 8));
+  s_battery_layer = layer_create(GRect(right_x+2, 10, 19, 8));
   layer_set_update_proc(s_battery_layer, battery_update_proc);
   layer_add_child(window_get_root_layer(window), s_battery_layer);
 
-  text_battery_layer = text_layer_create(GRect(90, 8, 19, 9));
+  text_battery_layer = text_layer_create(GRect(right_x+2, 8, 19, 9));
   text_layer_set_background_color(text_battery_layer, GColorClear);
   text_layer_set_text_color (text_battery_layer, GColorBlack);
   text_layer_set_text_alignment(text_battery_layer, GTextAlignmentCenter);
@@ -489,17 +497,17 @@ static void window_load(Window *window) {
   layer_add_child(window_layer, text_layer_get_layer(text_battery_layer));
 
   // Ensure battery level is displayed from the start
-  battery_callback(battery_state_service_peek());  
-  
+  battery_callback(battery_state_service_peek());
+
   // Create the Bluetooth icon GBitmap
   s_bt_icon_bitmap = gbitmap_create_with_resource(RESOURCE_ID_IMAGE_BT_ICON);
-  s_bt_icon_layer = bitmap_layer_create(GRect(88, 2, 24, 24));
+  s_bt_icon_layer = bitmap_layer_create(GRect(right_x, 2, 24, 24));
   bitmap_layer_set_background_color(s_bt_icon_layer, GColorRed);
   bitmap_layer_set_bitmap(s_bt_icon_layer, s_bt_icon_bitmap);
   layer_add_child(window_get_root_layer(window), bitmap_layer_get_layer(s_bt_icon_layer));
   // Show the correct state of the BT connection from the start
   bluetooth_callback(connection_service_peek_pebble_app_connection());
-  
+
   // icono central TV
   s_icon_bitmap = gbitmap_create_with_resource(RESOURCE_ID_TVC);
   const GEdgeInsets icon_insets = {.top = 32, .right = ACTION_BAR_WIDTH, .bottom = 46, .left = ACTION_BAR_WIDTH / 3};
@@ -522,7 +530,7 @@ static void window_load(Window *window) {
   bitmap_layer_set_bitmap(s_led_layer, s_led_bitmap);
   bitmap_layer_set_compositing_mode(s_led_layer, GCompOpSet);
   layer_add_child(window_get_root_layer(window), bitmap_layer_get_layer(s_led_layer));
-  
+
   // barra de volumen
   bars_layer = layer_create(layer_get_frame(window_layer));
   layer_set_update_proc(bars_layer, bars_update_callback);
@@ -541,7 +549,7 @@ static void window_load(Window *window) {
   text_layer_set_font(s_label_layer, fonts_get_system_font(FONT_KEY_GOTHIC_24_BOLD));
   layer_set_hidden(text_layer_get_layer(s_label_layer), !s_tv_screen_is_on);
   layer_add_child(window_layer, text_layer_get_layer(s_label_layer));
-    
+
   titles[0]="Vol = %u";
   titles[1]="TV Channels";
   titles[2]="General";
@@ -560,7 +568,7 @@ static void window_load(Window *window) {
   action_bar_layer_set_background_color(s_action_bar_layer, GColorBlack);
   action_bar_layer_add_to_window(s_action_bar_layer, window);
   // Set the click config provider:
-  action_bar_layer_set_click_config_provider(s_action_bar_layer,click_config_provider);  
+  action_bar_layer_set_click_config_provider(s_action_bar_layer,click_config_provider);
 }
 
 static void window_unload(Window *window) {
@@ -602,9 +610,9 @@ void init(void) {
     });
 	window_stack_push(s_main_window, true);
 	// Register AppMessage handlers
-	app_message_register_inbox_received(in_received_handler); 
-	app_message_register_inbox_dropped(in_dropped_handler); 
-	app_message_register_outbox_failed(out_failed_handler);		
+	app_message_register_inbox_received(in_received_handler);
+	app_message_register_inbox_dropped(in_dropped_handler);
+	app_message_register_outbox_failed(out_failed_handler);
 	app_message_open(app_message_inbox_size_maximum(), app_message_outbox_size_maximum());
   // Register for minute updates
   tick_timer_service_subscribe(MINUTE_UNIT, handle_minute_tick);

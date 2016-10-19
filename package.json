@@ -1,126 +1,126 @@
 {
-    "author": "jorsmm@gmail.com",
-    "dependencies": {
-        "pebble-clay": "^1.0.0"
-    },
-    "keywords": [],
-    "name": "viera",
-    "pebble": {
-        "capabilities": [
-            "configurable"
-        ],
-        "displayName": "Viera Remote",
-        "enableMultiJS": true,
-        "messageKeys": [
-            "status",
-            "message",
-            "ipaddr",
-            "port"
-        ],
-        "projectType": "native",
-        "resources": {
-            "media": [
-                {
-                    "file": "images/red_dot3.png",
-                    "name": "REDDOT",
-                    "targetPlatforms": null,
-                    "type": "bitmap"
-                },
-                {
-                    "file": "images/battery.png",
-                    "name": "IMAGE_BATTERY",
-                    "targetPlatforms": null,
-                    "type": "bitmap"
-                },
-                {
-                    "file": "images/bt-icon.png",
-                    "name": "IMAGE_BT_ICON",
-                    "targetPlatforms": null,
-                    "type": "bitmap"
-                },
-                {
-                    "file": "images/av.png",
-                    "name": "CHINPUT",
-                    "targetPlatforms": null,
-                    "type": "bitmap"
-                },
-                {
-                    "file": "images/info.png",
-                    "name": "INFO",
-                    "targetPlatforms": null,
-                    "type": "bitmap"
-                },
-                {
-                    "file": "images/mute.png",
-                    "name": "MUTE",
-                    "targetPlatforms": null,
-                    "type": "bitmap"
-                },
-                {
-                    "file": "images/chdown.png",
-                    "name": "CHDOWN",
-                    "targetPlatforms": null,
-                    "type": "bitmap"
-                },
-                {
-                    "file": "images/chup.png",
-                    "name": "CHUP",
-                    "targetPlatforms": null,
-                    "type": "bitmap"
-                },
-                {
-                    "file": "images/voldown.png",
-                    "name": "VOLDOWN",
-                    "targetPlatforms": null,
-                    "type": "bitmap"
-                },
-                {
-                    "file": "images/volup.png",
-                    "name": "VOLUP",
-                    "targetPlatforms": null,
-                    "type": "bitmap"
-                },
-                {
-                    "file": "images/power.png",
-                    "name": "POWER",
-                    "targetPlatforms": null,
-                    "type": "bitmap"
-                },
-                {
-                    "file": "images/tvc.png",
-                    "name": "TVC",
-                    "targetPlatforms": null,
-                    "type": "bitmap"
-                },
-                {
-                    "file": "images/tv_icon.png",
-                    "menuIcon": true,
-                    "name": "ICON",
-                    "targetPlatforms": null,
-                    "type": "bitmap"
-                },
-                {
-                    "file": "images/action_icon_plus.png",
-                    "name": "PLUS",
-                    "targetPlatforms": null,
-                    "type": "bitmap"
-                },
-                {
-                    "file": "images/action_icon_minus.png",
-                    "name": "MINUS",
-                    "targetPlatforms": null,
-                    "type": "bitmap"
-                }
-            ]
+  "author": "jorsmm@gmail.com",
+  "dependencies": {
+  },
+  "keywords": [],
+  "name": "viera",
+  "pebble": {
+    "capabilities": [
+      "configurable"
+    ],
+    "displayName": "Viera Remote",
+    "enableMultiJS": true,
+    "messageKeys": [
+      "status",
+      "message",
+      "ipaddr",
+      "port"
+    ],
+    "projectType": "native",
+    "resources": {
+      "media": [
+        {
+          "file": "images/red_dot3.png",
+          "name": "REDDOT",
+          "targetPlatforms": null,
+          "type": "bitmap"
         },
-        "sdkVersion": "3",
-        "targetPlatforms": [
-            "basalt"
-        ],
-        "uuid": "41dfb76e-28b9-4af9-8a2a-f071779ced9f",
-        "watchapp": {
-            "watchface": false
+        {
+          "file": "images/battery.png",
+          "name": "IMAGE_BATTERY",
+          "targetPlatforms": null,
+          "type": "bitmap"
+        },
+        {
+          "file": "images/bt-icon.png",
+          "name": "IMAGE_BT_ICON",
+          "targetPlatforms": null,
+          "type": "bitmap"
+        },
+        {
+          "file": "images/av.png",
+          "name": "CHINPUT",
+          "targetPlatforms": null,
+          "type": "bitmap"
+        },
+        {
+          "file": "images/info.png",
+          "name": "INFO",
+          "targetPlatforms": null,
+          "type": "bitmap"
+        },
+        {
+          "file": "images/mute.png",
+          "name": "MUTE",
+          "targetPlatforms": null,
+          "type": "bitmap"
+        },
+        {
+          "file": "images/chdown.png",
+          "name": "CHDOWN",
+          "targetPlatforms": null,
+          "type": "bitmap"
+        },
+        {
+          "file": "images/chup.png",
+          "name": "CHUP",
+          "targetPlatforms": null,
+          "type": "bitmap"
+        },
+        {
+          "file": "images/voldown.png",
+          "name": "VOLDOWN",
+          "targetPlatforms": null,
+          "type": "bitmap"
+        },
+        {
+          "file": "images/volup.png",
+          "name": "VOLUP",
+          "targetPlatforms": null,
+          "type": "bitmap"
+        },
+        {
+          "file": "images/power.png",
+          "name": "POWER",
+          "targetPlatforms": null,
+          "type": "bitmap"
+        },
+        {
+          "file": "images/tvc.png",
+          "name": "TVC",
+          "targetPlatforms": null,
+          "type": "bitmap"
+        },
+        {
+          "file": "images/tv_icon.png",
+          "menuIcon": true,
+          "name": "ICON",
+          "targetPlatforms": null,
+          "type": "bitmap"
+        },
+        {
+          "file": "images/action_icon_plus.png",
+          "name": "PLUS",
+          "targetPlatforms": null,
+          "type": "bitmap"
+        },
+        {
+          "file": "images/action_icon_minus.png",
+          "name": "MINUS",
+          "targetPlatforms": null,
+          "type": "bitmap"
         }
+      ]
     },
-    "version": "1.0.0"
+    "sdkVersion": "3",
+    "targetPlatforms": [
+      "basalt",
+      "emery"
+    ],
+    "uuid": "41dfb76e-28b9-4af9-8a2a-f071779ced9f",
+    "watchapp": {
+      "watchface": false
+    }
+  },
+  "version": "1.0.0"
 }
