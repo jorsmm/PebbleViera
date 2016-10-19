@@ -458,10 +458,6 @@ static void window_load(Window *window) {
 #endif
 
   // el dia
-//  const GEdgeInsets day_insets = {.top = -5, .right = 117, .bottom = 140, .left = -2 + lateral };
-
-APP_LOG(APP_LOG_LEVEL_ERROR, "ACTION_BAR_WIDTH=%d", ACTION_BAR_WIDTH);
-
   text_day_layer = text_layer_create(GRect(-2+lateral, -5, 26, 30));
   text_layer_set_background_color(text_day_layer, GColorBlue);
   text_layer_set_text_color (text_day_layer, GColorWhite);
@@ -515,11 +511,13 @@ APP_LOG(APP_LOG_LEVEL_ERROR, "ACTION_BAR_WIDTH=%d", ACTION_BAR_WIDTH);
   bitmap_layer_set_bitmap(s_icon_layer, s_icon_bitmap);
   bitmap_layer_set_compositing_mode(s_icon_layer, GCompOpSet);
   layer_add_child(window_layer, bitmap_layer_get_layer(s_icon_layer));
+  GRect boundsTV = layer_get_frame((Layer *)s_icon_layer);
 
+  APP_LOG(APP_LOG_LEVEL_ERROR, "tv icon bounds x=%d. y=%d. w=%d. h=%d", boundsTV.origin.x, boundsTV.origin.y, boundsTV.size.w, boundsTV.size.h);
   // layer central pantalla negra TV
-  const GEdgeInsets tv_screen_insets = {.top = 65, .right = ACTION_BAR_WIDTH+32, .bottom = 57, .left = ACTION_BAR_WIDTH / 3 +20};
-  s_tv_screen_layer = text_layer_create(grect_inset(bounds, tv_screen_insets));
-  text_layer_set_background_color(s_tv_screen_layer, GColorBlack);
+  const GEdgeInsets tv_screen_insets = {.top = 35, .right = 30, .bottom = 10, .left = 20};
+  s_tv_screen_layer = text_layer_create(grect_inset(boundsTV, tv_screen_insets));
+  text_layer_set_background_color(s_tv_screen_layer, GColorYellow);
   layer_set_hidden(text_layer_get_layer(s_tv_screen_layer), s_tv_screen_is_on);
   layer_add_child(window_layer, text_layer_get_layer(s_tv_screen_layer));
 
