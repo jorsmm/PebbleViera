@@ -509,7 +509,6 @@ static void window_load(Window *window) {
 
   // icono central TV
   s_icon_bitmap = gbitmap_create_with_resource(RESOURCE_ID_TVC);
-//  s_icon_layer = bitmap_layer_create(GRect(35, 30, 80, 80));
   s_icon_layer = bitmap_layer_create(GRect((bounds.size.w-ACTION_BAR_WIDTH-80)/2, 30, 80, 80));
   bitmap_layer_set_bitmap(s_icon_layer, s_icon_bitmap);
   bitmap_layer_set_compositing_mode(s_icon_layer, GCompOpSet);
@@ -559,9 +558,10 @@ APP_LOG(APP_LOG_LEVEL_ERROR, "tv icon bounds x=%d. y=%d. w=%d. h=%d", boundsTV.o
   layer_add_child(window_layer, main_layer);
 
   // texto
-  const GEdgeInsets label_insets = {.top = 127, .right = ACTION_BAR_WIDTH, .left = ACTION_BAR_WIDTH / 3 + lateral};
-  s_label_layer = text_layer_create(grect_inset(bounds, label_insets));
-  text_layer_set_background_color(s_label_layer, GColorClear);
+   s_label_layer = text_layer_create(GRect(10, bounds.size.h-30-10, (bounds.size.w-ACTION_BAR_WIDTH-2*10), 30));
+//  const GEdgeInsets label_insets = {.top = 127, .right = ACTION_BAR_WIDTH, .left = ACTION_BAR_WIDTH / 3 + lateral};
+//  s_label_layer = text_layer_create(grect_inset(bounds, label_insets));
+  text_layer_set_background_color(s_label_layer, GColorGreen);
   text_layer_set_text_alignment(s_label_layer, GTextAlignmentCenter);
   text_layer_set_font(s_label_layer, fonts_get_system_font(FONT_KEY_GOTHIC_24_BOLD));
   layer_set_hidden(text_layer_get_layer(s_label_layer), s_tv_screen_is_on);
