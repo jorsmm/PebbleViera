@@ -1,6 +1,7 @@
 {
   "author": "jorsmm@gmail.com",
   "dependencies": {
+    "pebble-clay": "^1.0.4"
   },
   "keywords": [],
   "name": "viera",
@@ -19,6 +20,18 @@
     "projectType": "native",
     "resources": {
       "media": [
+        {
+          "file": "images/green_dot3.png",
+          "name": "GREENDOT",
+          "targetPlatforms": null,
+          "type": "bitmap"
+        },
+        {
+          "file": "images/orange_dot3.png",
+          "name": "ORANGEDOT",
+          "targetPlatforms": null,
+          "type": "bitmap"
+        },
         {
           "file": "images/red_dot3.png",
           "name": "REDDOT",

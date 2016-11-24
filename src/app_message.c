@@ -38,7 +38,10 @@ Layer *bars_layer;
 Layer *main_layer;
 
 static BitmapLayer *s_led_layer;
-static GBitmap *s_led_bitmap;
+static BitmapLayer *s_led_layer2;
+static GBitmap *s_led_bitmap_red;
+static GBitmap *s_led_bitmap_orange;
+static GBitmap *s_led_bitmap_green;
 
 static GContext* s_ctx;
 
@@ -506,28 +509,42 @@ static void window_load(Window *window) {
 
   // icono central TV
   s_icon_bitmap = gbitmap_create_with_resource(RESOURCE_ID_TVC);
-  const GEdgeInsets icon_insets = {.top = 32, .right = ACTION_BAR_WIDTH, .bottom = 46, .left = ACTION_BAR_WIDTH / 3};
-  s_icon_layer = bitmap_layer_create(grect_inset(bounds, icon_insets));
+  s_icon_layer = bitmap_layer_create(GRect(35, 30, 80, 80));
   bitmap_layer_set_bitmap(s_icon_layer, s_icon_bitmap);
   bitmap_layer_set_compositing_mode(s_icon_layer, GCompOpSet);
   layer_add_child(window_layer, bitmap_layer_get_layer(s_icon_layer));
   GRect boundsTV = layer_get_frame((Layer *)s_icon_layer);
+APP_LOG(APP_LOG_LEVEL_ERROR, "watch   bounds x=%d. y=%d. w=%d. h=%d", bounds.origin.x, bounds.origin.y, bounds.size.w, bounds.size.h);
+APP_LOG(APP_LOG_LEVEL_ERROR, "tv icon bounds x=%d. y=%d. w=%d. h=%d", boundsTV.origin.x, boundsTV.origin.y, boundsTV.size.w, boundsTV.size.h);
 
-  APP_LOG(APP_LOG_LEVEL_ERROR, "tv icon bounds x=%d. y=%d. w=%d. h=%d", boundsTV.origin.x, boundsTV.origin.y, boundsTV.size.w, boundsTV.size.h);
   // layer central pantalla negra TV
-  const GEdgeInsets tv_screen_insets = {.top = 35, .right = 30, .bottom = 10, .left = 20};
+  const GEdgeInsets tv_screen_insets = {.top = 30, .right = 20, .bottom = 5, .left = 5};
   s_tv_screen_layer = text_layer_create(grect_inset(boundsTV, tv_screen_insets));
-  text_layer_set_background_color(s_tv_screen_layer, GColorYellow);
+  text_layer_set_background_color(s_tv_screen_layer, GColorBlack);
   layer_set_hidden(text_layer_get_layer(s_tv_screen_layer), s_tv_screen_is_on);
   layer_add_child(window_layer, text_layer_get_layer(s_tv_screen_layer));
 
+  s_led_bitmap_red = gbitmap_create_with_resource(RESOURCE_ID_REDDOT);
+  s_led_bitmap_orange = gbitmap_create_with_resource(RESOURCE_ID_ORANGEDOT);
+  s_led_bitmap_green = gbitmap_create_with_resource(RESOURCE_ID_GREENDOT);
+
   // boton led rojo
-  s_led_bitmap = gbitmap_create_with_resource(RESOURCE_ID_REDDOT);
-  s_led_layer = bitmap_layer_create(GRect(85, 76, 10, 10));
-  layer_set_hidden(bitmap_layer_get_layer(s_led_layer), true);
-  bitmap_layer_set_bitmap(s_led_layer, s_led_bitmap);
+  const GEdgeInsets led_insets = {.top = 39, .right = 7, .bottom = 31, .left = 63};
+  s_led_layer = bitmap_layer_create(grect_inset(boundsTV, led_insets));
+  layer_set_hidden(bitmap_layer_get_layer(s_led_layer), false);
+  bitmap_layer_set_bitmap(s_led_layer, s_led_bitmap_red);
   bitmap_layer_set_compositing_mode(s_led_layer, GCompOpSet);
-  layer_add_child(window_get_root_layer(window), bitmap_layer_get_layer(s_led_layer));
+  layer_add_child(window_layer, bitmap_layer_get_layer(s_led_layer));
+//  GRect boundsLED = layer_get_frame((Layer *)s_led_layer);
+//  APP_LOG(APP_LOG_LEVEL_ERROR, "tv led  bounds x=%d. y=%d. w=%d. h=%d", boundsLED.origin.x, boundsLED.origin.y, boundsLED.size.w, boundsLED.size.h);
+
+  // boton led rojo abajo
+  const GEdgeInsets led_insets2 = {.top = 51, .right = 7, .bottom = 19, .left = 63};
+  s_led_layer2 = bitmap_layer_create(grect_inset(boundsTV, led_insets2));
+  layer_set_hidden(bitmap_layer_get_layer(s_led_layer2), false);
+  bitmap_layer_set_bitmap(s_led_layer2, s_led_bitmap_green);
+  bitmap_layer_set_compositing_mode(s_led_layer2, GCompOpSet);
+  layer_add_child(window_layer, bitmap_layer_get_layer(s_led_layer2));
 
   // barra de volumen
   bars_layer = layer_create(layer_get_frame(window_layer));
@@ -545,7 +562,7 @@ static void window_load(Window *window) {
   text_layer_set_background_color(s_label_layer, GColorClear);
   text_layer_set_text_alignment(s_label_layer, GTextAlignmentCenter);
   text_layer_set_font(s_label_layer, fonts_get_system_font(FONT_KEY_GOTHIC_24_BOLD));
-  layer_set_hidden(text_layer_get_layer(s_label_layer), !s_tv_screen_is_on);
+  layer_set_hidden(text_layer_get_layer(s_label_layer), s_tv_screen_is_on);
   layer_add_child(window_layer, text_layer_get_layer(s_label_layer));
 
   titles[0]="Vol = %u";
@@ -575,8 +592,11 @@ static void window_unload(Window *window) {
   text_layer_destroy(text_day_layer);
   action_bar_layer_destroy(s_action_bar_layer);
   bitmap_layer_destroy(s_icon_layer);
-  gbitmap_destroy(s_led_bitmap);
+  gbitmap_destroy(s_led_bitmap_red);
+  gbitmap_destroy(s_led_bitmap_orange);
+  gbitmap_destroy(s_led_bitmap_green);
   bitmap_layer_destroy(s_led_layer);
+  bitmap_layer_destroy(s_led_layer2);
   text_layer_destroy(s_tv_screen_layer);
   layer_destroy(bars_layer);
   layer_destroy(main_layer);
