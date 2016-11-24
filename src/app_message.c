@@ -509,7 +509,8 @@ static void window_load(Window *window) {
 
   // icono central TV
   s_icon_bitmap = gbitmap_create_with_resource(RESOURCE_ID_TVC);
-  s_icon_layer = bitmap_layer_create(GRect(35, 30, 80, 80));
+//  s_icon_layer = bitmap_layer_create(GRect(35, 30, 80, 80));
+  s_icon_layer = bitmap_layer_create(GRect((bounds.size.w-ACTION_BAR_WIDTH-80)/2, 30, 80, 80));
   bitmap_layer_set_bitmap(s_icon_layer, s_icon_bitmap);
   bitmap_layer_set_compositing_mode(s_icon_layer, GCompOpSet);
   layer_add_child(window_layer, bitmap_layer_get_layer(s_icon_layer));
@@ -524,11 +525,12 @@ APP_LOG(APP_LOG_LEVEL_ERROR, "tv icon bounds x=%d. y=%d. w=%d. h=%d", boundsTV.o
   layer_set_hidden(text_layer_get_layer(s_tv_screen_layer), s_tv_screen_is_on);
   layer_add_child(window_layer, text_layer_get_layer(s_tv_screen_layer));
 
+  // bitmap de los tres leds
   s_led_bitmap_red = gbitmap_create_with_resource(RESOURCE_ID_REDDOT);
   s_led_bitmap_orange = gbitmap_create_with_resource(RESOURCE_ID_ORANGEDOT);
   s_led_bitmap_green = gbitmap_create_with_resource(RESOURCE_ID_GREENDOT);
 
-  // boton led rojo
+  // boton led rojo arriba
   const GEdgeInsets led_insets = {.top = 39, .right = 7, .bottom = 31, .left = 63};
   s_led_layer = bitmap_layer_create(grect_inset(boundsTV, led_insets));
   layer_set_hidden(bitmap_layer_get_layer(s_led_layer), false);
@@ -538,7 +540,7 @@ APP_LOG(APP_LOG_LEVEL_ERROR, "tv icon bounds x=%d. y=%d. w=%d. h=%d", boundsTV.o
 //  GRect boundsLED = layer_get_frame((Layer *)s_led_layer);
 //  APP_LOG(APP_LOG_LEVEL_ERROR, "tv led  bounds x=%d. y=%d. w=%d. h=%d", boundsLED.origin.x, boundsLED.origin.y, boundsLED.size.w, boundsLED.size.h);
 
-  // boton led rojo abajo
+  // boton led abajo
   const GEdgeInsets led_insets2 = {.top = 51, .right = 7, .bottom = 19, .left = 63};
   s_led_layer2 = bitmap_layer_create(grect_inset(boundsTV, led_insets2));
   layer_set_hidden(bitmap_layer_get_layer(s_led_layer2), false);
