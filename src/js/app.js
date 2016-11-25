@@ -9,7 +9,7 @@ var messageKeys = require('message_keys');
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 var commands=['','VOLUP','MUTE','VOLDOWN',
                  'CH_UP','TV','CH_DOWN',
-                 'CHG_INPUT','POWER','INFO'];                            
+                 'CHG_INPUT','POWER','INFO'];
 var ipAddress="192.168.1.8";
 var port="55000";
 
@@ -65,7 +65,7 @@ function submitRequest (url, urn, action, options) {
           console.log("["+action+"]##No hay Callback: Enviar Status OK (0)##");
           sendStatus(0);
         }
-      } 
+      }
       else if (req.status === 400) {
         console.log("["+action+"]Error 400, Enviar que La TV está apagada ("+STATUS_ENVIAR_TV_APAGADA+"):"+req.status+","+req.statusText);
         sendStatus(STATUS_ENVIAR_TV_APAGADA);
@@ -77,15 +77,15 @@ function submitRequest (url, urn, action, options) {
     }
   };
   req.timeout = 2000;
-  req.ontimeout = function () { 
+  req.ontimeout = function () {
     //jsmm 02/06/2016 para probar falsear como que me ha llegado volumen, descomentar 2 lineas siguientes y comentar la última de STATUS_ENVIAR_ERROR_TIMEOUT
-    //console.log('Error de TIMEOUT. falsear enviando volumen 8'); 
-    //pintaRespuestaVolumen(8);
-    console.log("["+action+"]Error de TIMEOUT. Enviar status "+STATUS_ENVIAR_ERROR_TIMEOUT); 
-    sendStatus(STATUS_ENVIAR_ERROR_TIMEOUT);
+    console.log('Error de TIMEOUT. falsear enviando volumen 8');
+    pintaRespuestaVolumen(100);
+    //console.log("["+action+"]Error de TIMEOUT. Enviar status "+STATUS_ENVIAR_ERROR_TIMEOUT);
+    //sendStatus(STATUS_ENVIAR_ERROR_TIMEOUT);
   };
-  req.onerror = function () { 
-    console.log("["+action+"]Error. Enviar status "+STATUS_ENVIAR_ERROR); 
+  req.onerror = function () {
+    console.log("["+action+"]Error. Enviar status "+STATUS_ENVIAR_ERROR);
     sendStatus(STATUS_ENVIAR_ERROR);
   };
   req.send(command_str);
@@ -95,7 +95,7 @@ function submitRequest (url, urn, action, options) {
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 /**
  * Send a key state event to the TV
- * 
+ *
  * @param  {String} key   The key value to send
  * @param  {String} state <ON|OFF|ONOFF>
  */
@@ -103,9 +103,9 @@ var sendKey = function(key, state){
   var command=">NRC_"+key+"-"+state;
   console.log("sendkey ["+command+"]");
 	submitRequest(
-		URL_NETWORK, 
-		URN_NETWORK, 
-		ACTION_SENDKEY, 
+		URL_NETWORK,
+		URN_NETWORK,
+		ACTION_SENDKEY,
 		{
 			args: "<"+ARG_SENDKEY+command+"</"+ARG_SENDKEY+">"
 		}
@@ -113,7 +113,7 @@ var sendKey = function(key, state){
 };
 /**
  * Send a key push/release event to the TV
- * 
+ *
  * @param  {String} key   The key that has been released
  */
 var send = function(key){
@@ -130,7 +130,7 @@ var pintaRespuestaVolumen = function(respuesta){
 
 /**
  * Get the current volume value
- * 
+ *
  * @param  {Function} callback A function of the form function(volume) to return the volume value to
  */
 var getVolume = function(){
@@ -163,7 +163,7 @@ var pintaRespuestaMute = function(respuesta){
 
 /**
  * Get the current mute setting
- * 
+ *
  * @param  {Function} callback A function of the form function(mute) to return the volume value to
  */
 var getMute = function(){
@@ -201,12 +201,12 @@ function sendMyMessage(mymessage) {
 // Function to send a message to the Pebble using AppMessage API
 function sendStatus(status) {
 	Pebble.sendAppMessage({"status": status});
-	
-	// PRO TIP: If you are sending more than one message, or a complex set of messages, 
-	// it is important that you setup an ackHandler and a nackHandler and call 
-	// Pebble.sendAppMessage({ /* Message here */ }, ackHandler, nackHandler), which 
-	// will designate the ackHandler and nackHandler that will be called upon the Pebble 
-	// ack-ing or nack-ing the message you just sent. The specified nackHandler will 
+
+	// PRO TIP: If you are sending more than one message, or a complex set of messages,
+	// it is important that you setup an ackHandler and a nackHandler and call
+	// Pebble.sendAppMessage({ /* Message here */ }, ackHandler, nackHandler), which
+	// will designate the ackHandler and nackHandler that will be called upon the Pebble
+	// ack-ing or nack-ing the message you just sent. The specified nackHandler will
 	// also be called if your message send attempt times out.
 }
 

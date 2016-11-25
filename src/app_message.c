@@ -186,16 +186,27 @@ void handle_minute_tick(struct tm *tick_time, TimeUnits units_changed) {
 
 /////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////
+
+int volbar_h=25;
+int volbar_w=102;
+int volbar_x=5;
+int volbar_y=135;
+int volbar_border=1;
+
 void bars_update_callback(Layer *me, GContext* ctx) {
+  Layer *window_layer = window_get_root_layer(layer_get_window(me));
+  GRect bounds = layer_get_unobstructed_bounds(window_layer);
   (void)me;
   s_ctx=ctx;
+  volbar_x=(bounds.size.w-ACTION_BAR_WIDTH-volbar_w-(2*volbar_border))/2;
+  volbar_y=bounds.size.h-volbar_h-10;
+
   if (offset==0) {
     layer_set_hidden (me, false);
-    graphics_context_set_stroke_color(ctx, GColorBlue);
-    graphics_draw_line(ctx, GPoint(5, 135),     GPoint(112-7, 135));
-    graphics_draw_line(ctx, GPoint(5+lateral, 135+18),   GPoint(112-7+lateral, 135+18));
-    graphics_draw_line(ctx, GPoint(4, 136),     GPoint(4, 136+16));
-    graphics_draw_line(ctx, GPoint(112-6, 136), GPoint(112-6, 136+16));
+    graphics_context_set_fill_color(ctx, GColorBlue);
+    graphics_fill_rect(ctx, GRect(volbar_x, volbar_y, volbar_w, volbar_h), 2, GCornersAll);
+    graphics_context_set_fill_color(ctx, GColorWhite);
+    graphics_fill_rect(ctx, GRect(volbar_x+volbar_border, volbar_y+volbar_border, volbar_w-(volbar_border*2), volbar_h-(volbar_border*2)), 2, GCornersAll);
   }
   else {
     layer_set_hidden (me, true);
@@ -213,7 +224,7 @@ void progress_update_callback(Layer *me, GContext* ctx) {
       graphics_context_set_stroke_color(ctx, GColorBlue);
       graphics_context_set_fill_color(ctx, GColorBlue);
     }
-    graphics_fill_rect(ctx, GRect(5+lateral, 136, s_volume, 17), 0, GCornersAll);
+    graphics_fill_rect(ctx, GRect(volbar_x+volbar_border, volbar_y+(volbar_border*2), s_volume, volbar_h-(2*volbar_border)), 2, GCornersAll);
   }
   else {
     layer_set_hidden (me, true);
@@ -561,7 +572,7 @@ APP_LOG(APP_LOG_LEVEL_ERROR, "tv icon bounds x=%d. y=%d. w=%d. h=%d", boundsTV.o
    s_label_layer = text_layer_create(GRect(10, bounds.size.h-30-10, (bounds.size.w-ACTION_BAR_WIDTH-2*10), 30));
 //  const GEdgeInsets label_insets = {.top = 127, .right = ACTION_BAR_WIDTH, .left = ACTION_BAR_WIDTH / 3 + lateral};
 //  s_label_layer = text_layer_create(grect_inset(bounds, label_insets));
-  text_layer_set_background_color(s_label_layer, GColorGreen);
+  text_layer_set_background_color(s_label_layer, GColorClear);
   text_layer_set_text_alignment(s_label_layer, GTextAlignmentCenter);
   text_layer_set_font(s_label_layer, fonts_get_system_font(FONT_KEY_GOTHIC_24_BOLD));
   layer_set_hidden(text_layer_get_layer(s_label_layer), s_tv_screen_is_on);
