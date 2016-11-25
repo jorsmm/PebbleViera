@@ -14,6 +14,7 @@
 #define STATUS_CONSULTAR_ESTADO_MUTE_Y_VOLUMEN_CON_DELAY 101
 
 #define STATUS_RECIBIDO_TV_APAGADA 204
+#define STATUS_RECIBIDO_TIMEOUT 202
 
 static Window *s_main_window;
 static TextLayer *s_label_layer;
@@ -56,7 +57,7 @@ static BitmapLayer *s_bt_icon_layer;
 static GBitmap *s_bt_icon_bitmap;
 
 static bool s_tv_screen_is_on=false;
-static bool s_connection=false;
+static bool s_tv_is_on=false;
 
 static int s_last_status_sent=-1;
 
@@ -84,6 +85,8 @@ static void update_action_bar_layer();
 static void update_tv_layers();
 static void tv_screen_is_on();
 static void tv_screen_is_off();
+static void tv_is_on();
+static void tv_is_off();
 static void select_long_click_handler(ClickRecognizerRef recognizer, void *context);
 static void increment_click_handler(ClickRecognizerRef recognizer, void *context);
 static void select_click_handler(ClickRecognizerRef recognizer, void *context);
@@ -203,10 +206,10 @@ void bars_update_callback(Layer *me, GContext* ctx) {
 
   if (offset==0) {
     layer_set_hidden (me, false);
-    graphics_context_set_fill_color(ctx, GColorBlue);
-    graphics_fill_rect(ctx, GRect(volbar_x, volbar_y, volbar_w, volbar_h), 2, GCornersAll);
+    graphics_context_set_fill_color(ctx, GColorOxfordBlue);
+    graphics_fill_rect(ctx, GRect(volbar_x, volbar_y, volbar_w, volbar_h), 4, GCornersAll);
     graphics_context_set_fill_color(ctx, GColorWhite);
-    graphics_fill_rect(ctx, GRect(volbar_x+volbar_border, volbar_y+volbar_border, volbar_w-(volbar_border*2), volbar_h-(volbar_border*2)), 2, GCornersAll);
+    graphics_fill_rect(ctx, GRect(volbar_x+volbar_border, volbar_y+volbar_border, volbar_w-(volbar_border*2), volbar_h-(volbar_border*2)), 4, GCornersAll);
   }
   else {
     layer_set_hidden (me, true);
@@ -217,14 +220,14 @@ void progress_update_callback(Layer *me, GContext* ctx) {
   if (offset==0) {
     layer_set_hidden (me, false);
     if (s_mute==1) {
-      graphics_context_set_stroke_color(ctx, GColorLightGray);
+//      graphics_context_set_stroke_color(ctx, GColorLightGray);
       graphics_context_set_fill_color(ctx, GColorLightGray);
     }
     else {
-      graphics_context_set_stroke_color(ctx, GColorBlue);
+//      graphics_context_set_stroke_color(ctx, GColorBlue);
       graphics_context_set_fill_color(ctx, GColorBlue);
     }
-    graphics_fill_rect(ctx, GRect(volbar_x+volbar_border, volbar_y+(volbar_border*2), s_volume, volbar_h-(2*volbar_border)), 2, GCornersAll);
+    graphics_fill_rect(ctx, GRect(volbar_x+volbar_border, volbar_y+(volbar_border), s_volume, volbar_h-(2*volbar_border)), 4, GCornersAll);
   }
   else {
     layer_set_hidden (me, true);
@@ -241,7 +244,13 @@ static void update_text() {
     snprintf(s_body_text, sizeof(s_body_text), "MUTE");
   }
   else {
-    text_layer_set_text_color (s_label_layer, GColorBlack);
+    if (s_volume<80) {
+      text_layer_set_text_color (s_label_layer, GColorBlack);
+    }
+    else {
+      text_layer_set_text_color (s_label_layer, GColorWhite);
+    }
+
     snprintf(s_body_text, sizeof(s_body_text), titles[offset], s_volume);
   }
   text_layer_set_text(s_label_layer, s_body_text);
@@ -261,9 +270,22 @@ static void update_action_bar_layer() {
 /////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////
 static void update_tv_layers() {
-  printf("s_tv_screen_is_on=%s s_connection%s", s_tv_screen_is_on ? "true" : "false", s_connection ? "true" : "false");
+  printf("s_tv_screen_is_on=%s s_tv_is_on=%s", s_tv_screen_is_on ? "true" : "false", s_tv_is_on ? "true" : "false");
+
+  if (!s_tv_is_on) {
+    bitmap_layer_set_bitmap(s_led_layer2, s_led_bitmap_red);
+  }
+  else {
+    if (s_tv_screen_is_on) {
+      bitmap_layer_set_bitmap(s_led_layer2, s_led_bitmap_green);
+    }
+    else {
+      bitmap_layer_set_bitmap(s_led_layer2, s_led_bitmap_orange);
+    }
+  }
+
   layer_set_hidden(text_layer_get_layer(s_tv_screen_layer), s_tv_screen_is_on);
-  layer_set_hidden(text_layer_get_layer(s_label_layer), !s_tv_screen_is_on && s_connection);
+  layer_set_hidden(text_layer_get_layer(s_label_layer), !s_tv_screen_is_on && s_tv_is_on);
   layer_set_hidden(main_layer, !s_tv_screen_is_on);
   layer_set_hidden(bars_layer, !s_tv_screen_is_on);
 }
@@ -272,6 +294,7 @@ static void tv_screen_is_on() {
   if (!s_tv_screen_is_on) {
     APP_LOG(APP_LOG_LEVEL_INFO, "tv_screen_is_on: LA TV ESTA ENCENDIDA");
     s_tv_screen_is_on = true;
+    s_tv_is_on = true;
     offset=0;
     update_action_bar_layer();
     update_tv_layers();
@@ -283,7 +306,20 @@ static void tv_screen_is_off() {
   if (s_tv_screen_is_on) {
     APP_LOG(APP_LOG_LEVEL_INFO, "tv_screen_is_off: LA TV ESTA APAGADA");
     s_tv_screen_is_on = false;
+    s_tv_is_on = true;
     offset=2;
+    update_action_bar_layer();
+    update_tv_layers();
+    update_text();
+  }
+}
+
+static void tv_is_off() {
+  APP_LOG(APP_LOG_LEVEL_DEBUG, "tv_is_off: %d", s_tv_is_on);
+  if (s_tv_is_on) {
+    APP_LOG(APP_LOG_LEVEL_INFO, "tv_is_off: LA TV NO TIENE RED");
+    s_tv_screen_is_on = false;
+    s_tv_is_on = false;
     update_action_bar_layer();
     update_tv_layers();
     update_text();
@@ -401,6 +437,10 @@ static void in_received_handler(DictionaryIterator *received, void *context) {
     if ((int)tuple->value->uint32 == STATUS_RECIBIDO_TV_APAGADA) {
       	tv_screen_is_off();
     }
+    else if ((int)tuple->value->uint32 == STATUS_RECIBIDO_TIMEOUT) {
+      	tv_is_off();
+    }
+
     if (s_last_status_sent==TVONOFF && (int)tuple->value->uint32 == 0) {
       send_message_to_phone(STATUS_CONSULTAR_ESTADO_MUTE_Y_VOLUMEN_CON_DELAY);
     }
@@ -554,7 +594,7 @@ APP_LOG(APP_LOG_LEVEL_ERROR, "tv icon bounds x=%d. y=%d. w=%d. h=%d", boundsTV.o
   const GEdgeInsets led_insets2 = {.top = 51, .right = 7, .bottom = 19, .left = 63};
   s_led_layer2 = bitmap_layer_create(grect_inset(boundsTV, led_insets2));
   layer_set_hidden(bitmap_layer_get_layer(s_led_layer2), false);
-  bitmap_layer_set_bitmap(s_led_layer2, s_led_bitmap_green);
+  bitmap_layer_set_bitmap(s_led_layer2, s_led_bitmap_red);
   bitmap_layer_set_compositing_mode(s_led_layer2, GCompOpSet);
   layer_add_child(window_layer, bitmap_layer_get_layer(s_led_layer2));
 
