@@ -512,11 +512,19 @@ static void window_load(Window *window) {
 #endif
 
   // el dia
+  #if PBL_DISPLAY_HEIGHT == 228
+  text_day_layer = text_layer_create(GRect(-2+lateral, -5, 42, 36));
+  #else
   text_day_layer = text_layer_create(GRect(-2+lateral, -5, 26, 30));
+  #endif
   text_layer_set_background_color(text_day_layer, GColorBlue);
   text_layer_set_text_color (text_day_layer, GColorWhite);
   text_layer_set_text_alignment(text_day_layer, GTextAlignmentCenter);
+#if PBL_DISPLAY_HEIGHT == 228
+  text_layer_set_font(text_day_layer, fonts_get_system_font(FONT_KEY_LECO_32_BOLD_NUMBERS));
+#else
   text_layer_set_font(text_day_layer, fonts_get_system_font(FONT_KEY_GOTHIC_28_BOLD));
+#endif
   layer_add_child(window_layer, text_layer_get_layer(text_day_layer));
 
   // la hora
@@ -525,7 +533,11 @@ static void window_load(Window *window) {
   text_layer_set_background_color(text_time_layer, GColorClear);
   text_layer_set_text_color (text_time_layer, GColorBlue);
   text_layer_set_text_alignment(text_time_layer, GTextAlignmentCenter);
+#if PBL_DISPLAY_HEIGHT == 228
+  text_layer_set_font(text_time_layer, fonts_get_system_font(FONT_KEY_LECO_32_BOLD_NUMBERS));
+#else
   text_layer_set_font(text_time_layer, fonts_get_system_font(FONT_KEY_GOTHIC_28_BOLD));
+#endif
   layer_add_child(window_layer, text_layer_get_layer(text_time_layer));
 
   int right_x=bounds.size.w - ACTION_BAR_WIDTH - 28;
@@ -560,7 +572,9 @@ static void window_load(Window *window) {
 
   // icono central TV
   s_icon_bitmap = gbitmap_create_with_resource(RESOURCE_ID_TVC);
-  s_icon_layer = bitmap_layer_create(GRect((bounds.size.w-ACTION_BAR_WIDTH-80)/2, 30, 80, 80));
+  GRect boundsIcoTV=gbitmap_get_bounds(s_icon_bitmap);
+
+  s_icon_layer = bitmap_layer_create(GRect((bounds.size.w-ACTION_BAR_WIDTH-boundsIcoTV.size.w)/2, 40, boundsIcoTV.size.w, boundsIcoTV.size.h));
   bitmap_layer_set_bitmap(s_icon_layer, s_icon_bitmap);
   bitmap_layer_set_compositing_mode(s_icon_layer, GCompOpSet);
   layer_add_child(window_layer, bitmap_layer_get_layer(s_icon_layer));

@@ -101,7 +101,13 @@
         {
           "file": "images/tvc.png",
           "name": "TVC",
-          "targetPlatforms": null,
+          "targetPlatforms": "basalt",
+          "type": "bitmap"
+        },
+        {
+          "file": "images/tvc_emery.png",
+          "name": "TVC",
+          "targetPlatforms": "emery",
           "type": "bitmap"
         },
         {
