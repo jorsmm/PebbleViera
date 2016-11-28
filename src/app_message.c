@@ -190,13 +190,18 @@ void handle_minute_tick(struct tm *tick_time, TimeUnits units_changed) {
 /////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////
 
-int volbar_h=25;
-int volbar_w=102;
 int volbar_x=5;
 int volbar_y=135;
 int volbar_border=1;
+#if PBL_DISPLAY_HEIGHT == 228
+int volbar_multi=14;
+#else
+int volbar_multi=10;
+#endif
 
 void bars_update_callback(Layer *me, GContext* ctx) {
+  int volbar_h=25*volbar_multi/10;
+  int volbar_w=102*volbar_multi/10;
   Layer *window_layer = window_get_root_layer(layer_get_window(me));
   GRect bounds = layer_get_unobstructed_bounds(window_layer);
   (void)me;
@@ -216,6 +221,9 @@ void bars_update_callback(Layer *me, GContext* ctx) {
   }
 }
 void progress_update_callback(Layer *me, GContext* ctx) {
+  int volbar_h=25*volbar_multi/10;
+  int volbar_w=102*volbar_multi/10;
+
   s_ctx=ctx;
   if (offset==0) {
     layer_set_hidden (me, false);
@@ -227,7 +235,7 @@ void progress_update_callback(Layer *me, GContext* ctx) {
 //      graphics_context_set_stroke_color(ctx, GColorBlue);
       graphics_context_set_fill_color(ctx, GColorBlue);
     }
-    graphics_fill_rect(ctx, GRect(volbar_x+volbar_border, volbar_y+(volbar_border), s_volume, volbar_h-(2*volbar_border)), 4, GCornersAll);
+    graphics_fill_rect(ctx, GRect(volbar_x+volbar_border, volbar_y+(volbar_border), s_volume*volbar_multi/10, volbar_h-(2*volbar_border)), 4, GCornersAll);
   }
   else {
     layer_set_hidden (me, true);
@@ -570,20 +578,29 @@ static void window_load(Window *window) {
   // Show the correct state of the BT connection from the start
   bluetooth_callback(connection_service_peek_pebble_app_connection());
 
+  #if PBL_DISPLAY_HEIGHT == 228
+  int offfset_ico_tv=10;
+  #else
+  int offfset_ico_tv=0;
+  #endif
+
   // icono central TV
   s_icon_bitmap = gbitmap_create_with_resource(RESOURCE_ID_TVC);
   GRect boundsIcoTV=gbitmap_get_bounds(s_icon_bitmap);
-
-  s_icon_layer = bitmap_layer_create(GRect((bounds.size.w-ACTION_BAR_WIDTH-boundsIcoTV.size.w)/2, 40, boundsIcoTV.size.w, boundsIcoTV.size.h));
+  s_icon_layer = bitmap_layer_create(GRect((bounds.size.w-ACTION_BAR_WIDTH-boundsIcoTV.size.w)/2, 40+offfset_ico_tv, boundsIcoTV.size.w, boundsIcoTV.size.h));
   bitmap_layer_set_bitmap(s_icon_layer, s_icon_bitmap);
   bitmap_layer_set_compositing_mode(s_icon_layer, GCompOpSet);
   layer_add_child(window_layer, bitmap_layer_get_layer(s_icon_layer));
   GRect boundsTV = layer_get_frame((Layer *)s_icon_layer);
-APP_LOG(APP_LOG_LEVEL_ERROR, "watch   bounds x=%d. y=%d. w=%d. h=%d", bounds.origin.x, bounds.origin.y, bounds.size.w, bounds.size.h);
-APP_LOG(APP_LOG_LEVEL_ERROR, "tv icon bounds x=%d. y=%d. w=%d. h=%d", boundsTV.origin.x, boundsTV.origin.y, boundsTV.size.w, boundsTV.size.h);
+  APP_LOG(APP_LOG_LEVEL_ERROR, "watch   bounds x=%d. y=%d. w=%d. h=%d", bounds.origin.x, bounds.origin.y, bounds.size.w, bounds.size.h);
+  APP_LOG(APP_LOG_LEVEL_ERROR, "ActionBarWidth x=%d", ACTION_BAR_WIDTH);
 
   // layer central pantalla negra TV
+  #if PBL_DISPLAY_HEIGHT == 228
+  const GEdgeInsets tv_screen_insets = {.top = 45, .right = 25, .bottom = 5, .left = 5};
+  #else
   const GEdgeInsets tv_screen_insets = {.top = 30, .right = 20, .bottom = 5, .left = 5};
+  #endif
   s_tv_screen_layer = text_layer_create(grect_inset(boundsTV, tv_screen_insets));
   text_layer_set_background_color(s_tv_screen_layer, GColorBlack);
   layer_set_hidden(text_layer_get_layer(s_tv_screen_layer), s_tv_screen_is_on);
@@ -595,17 +612,23 @@ APP_LOG(APP_LOG_LEVEL_ERROR, "tv icon bounds x=%d. y=%d. w=%d. h=%d", boundsTV.o
   s_led_bitmap_green = gbitmap_create_with_resource(RESOURCE_ID_GREENDOT);
 
   // boton led rojo arriba
+  #if PBL_DISPLAY_HEIGHT == 228
+  const GEdgeInsets led_insets = {.top = 59, .right = 8, .bottom = 45, .left = 96};
+  #else
   const GEdgeInsets led_insets = {.top = 39, .right = 7, .bottom = 31, .left = 63};
+  #endif
   s_led_layer = bitmap_layer_create(grect_inset(boundsTV, led_insets));
   layer_set_hidden(bitmap_layer_get_layer(s_led_layer), false);
   bitmap_layer_set_bitmap(s_led_layer, s_led_bitmap_red);
   bitmap_layer_set_compositing_mode(s_led_layer, GCompOpSet);
   layer_add_child(window_layer, bitmap_layer_get_layer(s_led_layer));
-//  GRect boundsLED = layer_get_frame((Layer *)s_led_layer);
-//  APP_LOG(APP_LOG_LEVEL_ERROR, "tv led  bounds x=%d. y=%d. w=%d. h=%d", boundsLED.origin.x, boundsLED.origin.y, boundsLED.size.w, boundsLED.size.h);
 
   // boton led abajo
+  #if PBL_DISPLAY_HEIGHT == 228
+  const GEdgeInsets led_insets2 = {.top = 78, .right = 8, .bottom = 26, .left = 96};
+  #else
   const GEdgeInsets led_insets2 = {.top = 51, .right = 7, .bottom = 19, .left = 63};
+  #endif
   s_led_layer2 = bitmap_layer_create(grect_inset(boundsTV, led_insets2));
   layer_set_hidden(bitmap_layer_get_layer(s_led_layer2), false);
   bitmap_layer_set_bitmap(s_led_layer2, s_led_bitmap_red);
@@ -623,12 +646,14 @@ APP_LOG(APP_LOG_LEVEL_ERROR, "tv icon bounds x=%d. y=%d. w=%d. h=%d", boundsTV.o
   layer_add_child(window_layer, main_layer);
 
   // texto
-   s_label_layer = text_layer_create(GRect(10, bounds.size.h-30-10, (bounds.size.w-ACTION_BAR_WIDTH-2*10), 30));
-//  const GEdgeInsets label_insets = {.top = 127, .right = ACTION_BAR_WIDTH, .left = ACTION_BAR_WIDTH / 3 + lateral};
-//  s_label_layer = text_layer_create(grect_inset(bounds, label_insets));
+   s_label_layer = text_layer_create(GRect(10, bounds.size.h-30-(volbar_multi-10)-10, (bounds.size.w-ACTION_BAR_WIDTH-2*10), 30));
   text_layer_set_background_color(s_label_layer, GColorClear);
   text_layer_set_text_alignment(s_label_layer, GTextAlignmentCenter);
+  #if PBL_DISPLAY_HEIGHT == 228
+  text_layer_set_font(s_label_layer, fonts_get_system_font(FONT_KEY_GOTHIC_28_BOLD));
+  #else
   text_layer_set_font(s_label_layer, fonts_get_system_font(FONT_KEY_GOTHIC_24_BOLD));
+  #endif
   layer_set_hidden(text_layer_get_layer(s_label_layer), s_tv_screen_is_on);
   layer_add_child(window_layer, text_layer_get_layer(s_label_layer));
 

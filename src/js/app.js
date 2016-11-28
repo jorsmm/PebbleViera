@@ -79,10 +79,10 @@ function submitRequest (url, urn, action, options) {
   req.timeout = 2000;
   req.ontimeout = function () {
     //jsmm 02/06/2016 para probar falsear como que me ha llegado volumen, descomentar 2 lineas siguientes y comentar la última de STATUS_ENVIAR_ERROR_TIMEOUT
-    //console.log('Error de TIMEOUT. falsear enviando volumen 8');
-    //pintaRespuestaVolumen(100);
-    console.log("["+action+"]Error de TIMEOUT. Enviar status "+STATUS_ENVIAR_ERROR_TIMEOUT);
-    sendStatus(STATUS_ENVIAR_ERROR_TIMEOUT);
+    console.log('Error de TIMEOUT. falsear enviando volumen 8');
+    pintaRespuestaVolumen(100);
+    //console.log("["+action+"]Error de TIMEOUT. Enviar status "+STATUS_ENVIAR_ERROR_TIMEOUT);
+    //sendStatus(STATUS_ENVIAR_ERROR_TIMEOUT);
   };
   req.onerror = function () {
     console.log("["+action+"]Error. Enviar status "+STATUS_ENVIAR_ERROR);

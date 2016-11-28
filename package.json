@@ -23,19 +23,37 @@
         {
           "file": "images/green_dot3.png",
           "name": "GREENDOT",
-          "targetPlatforms": null,
+          "targetPlatforms": "basalt",
+          "type": "bitmap"
+        },
+        {
+          "file": "images/green_dot3_emery.png",
+          "name": "GREENDOT",
+          "targetPlatforms": "emery",
           "type": "bitmap"
         },
         {
           "file": "images/orange_dot3.png",
           "name": "ORANGEDOT",
-          "targetPlatforms": null,
+          "targetPlatforms": "basalt",
+          "type": "bitmap"
+        },
+        {
+          "file": "images/orange_dot3_emery.png",
+          "name": "ORANGEDOT",
+          "targetPlatforms": "emery",
           "type": "bitmap"
         },
         {
           "file": "images/red_dot3.png",
           "name": "REDDOT",
-          "targetPlatforms": null,
+          "targetPlatforms": "basalt",
+          "type": "bitmap"
+        },
+        {
+          "file": "images/red_dot3_emery.png",
+          "name": "REDDOT",
+          "targetPlatforms": "emery",
           "type": "bitmap"
         },
         {
