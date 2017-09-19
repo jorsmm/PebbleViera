@@ -1,20 +1,7 @@
-#include <pebble.h>
+#include "app_message.h"
 
-#define REPEAT_INTERVAL_MS 50
-#define MAX_BITMAPS 9
-
-#ifdef PBL_SDK_3
-//static StatusBarLayer *s_status_bar;
-#endif
-
-#define VOLUME_PKEY 1
-#define VOLUME_DEFAULT 0
-
-#define STATUS_CONSULTAR_ESTADO_MUTE_Y_VOLUMEN 100
-#define STATUS_CONSULTAR_ESTADO_MUTE_Y_VOLUMEN_CON_DELAY 101
-
-#define STATUS_RECIBIDO_TV_APAGADA 204
-#define STATUS_RECIBIDO_TIMEOUT 202
+// A struct for our specific settings (see main.h)
+ClaySettings settings;
 
 static Window *s_main_window;
 static TextLayer *s_label_layer;
@@ -70,39 +57,38 @@ static int lateral=PBL_IF_RECT_ELSE(0, 25);
 #else
 #endif
 
-bool startsWith(const char *pre, const char *str);
-void ledon();
-void ledoff();
-static void accel_tap_handler(AccelAxisType axis, int32_t direction);
-static void battery_callback(BatteryChargeState state);
-static void bluetooth_callback(bool connected);
-static void battery_update_proc(Layer *layer, GContext *ctx);
-void handle_minute_tick(struct tm *tick_time, TimeUnits units_changed);
-void bars_update_callback(Layer *me, GContext* ctx);
-void progress_update_callback(Layer *me, GContext* ctx);
-static void update_text();
-static void update_action_bar_layer();
-static void update_tv_layers();
-static void tv_screen_is_on();
-static void tv_screen_is_off();
-static void tv_is_on();
-static void tv_is_off();
-static void select_long_click_handler(ClickRecognizerRef recognizer, void *context);
-static void increment_click_handler(ClickRecognizerRef recognizer, void *context);
-static void select_click_handler(ClickRecognizerRef recognizer, void *context);
-static void decrement_click_handler(ClickRecognizerRef recognizer, void *context);
-static void click_config_provider(void *context);
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// Initialize the default settings
+static void prv_default_settings() {
+  strncpy(settings.ipaddr, "192.168.0.8", sizeof(settings.ipaddr));
+  strncpy(settings.port, "55000", sizeof(settings.port));
+}
 
-void send_message_to_phone(int status);
-static void in_received_handler(DictionaryIterator *received, void *context);
-static void in_dropped_handler(AppMessageResult reason, void *context);
-static void out_failed_handler(DictionaryIterator *failed, AppMessageResult reason, void *context);
+// Read settings from persistent storage
+static void prv_load_settings() {
+	APP_LOG(APP_LOG_LEVEL_DEBUG, "prv_load_settings");
+  // Load the default settings
+  prv_default_settings();
+  // Read settings from persistent storage, if they exist
+  persist_read_data(SETTINGS_KEY, &settings, sizeof(settings));
+}
+
+// Save the settings to persistent storage
+static void prv_save_settings() {
+	APP_LOG(APP_LOG_LEVEL_DEBUG, "prv_save_settings");
+  persist_write_data(SETTINGS_KEY, &settings, sizeof(settings));
+  // Update the display based on new settings
+  update_text();
+}
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-bool startsWith(const char *pre, const char *str) {
+static bool startsWith(const char *pre, const char *str) {
     size_t lenpre = strlen(pre),
            lenstr = strlen(str);
     return lenstr < lenpre ? false : strncmp(pre, str, lenpre) == 0;
@@ -110,10 +96,10 @@ bool startsWith(const char *pre, const char *str) {
 
 /////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////
-void ledon() {
+static void ledon() {
     layer_set_hidden(bitmap_layer_get_layer(s_led_layer), false);
 }
-void ledoff() {
+static void ledoff() {
     layer_set_hidden(bitmap_layer_get_layer(s_led_layer), true);
 }
 
@@ -169,7 +155,7 @@ static void battery_update_proc(Layer *layer, GContext *ctx) {
 
 /////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////
-void handle_minute_tick(struct tm *tick_time, TimeUnits units_changed) {
+static void handle_minute_tick(struct tm *tick_time, TimeUnits units_changed) {
   static char time_text[] = "00:00";
   static char day_text[] = "00";
   char *time_format;
@@ -199,7 +185,7 @@ int volbar_multi=14;
 int volbar_multi=10;
 #endif
 
-void bars_update_callback(Layer *me, GContext* ctx) {
+static void bars_update_callback(Layer *me, GContext* ctx) {
   int volbar_h=25*volbar_multi/10;
   int volbar_w=102*volbar_multi/10;
   Layer *window_layer = window_get_root_layer(layer_get_window(me));
@@ -220,7 +206,7 @@ void bars_update_callback(Layer *me, GContext* ctx) {
     layer_set_hidden (me, true);
   }
 }
-void progress_update_callback(Layer *me, GContext* ctx) {
+static void progress_update_callback(Layer *me, GContext* ctx) {
   int volbar_h=25*volbar_multi/10;
   int volbar_w=102*volbar_multi/10;
 
@@ -396,7 +382,7 @@ static void click_config_provider(void *context) {
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 // Write message to buffer & send
-void send_message_to_phone(int status){
+static void send_message_to_phone(int status){
   APP_LOG(APP_LOG_LEVEL_INFO, "send_message_to_phone: %d", status);
   if (status != STATUS_CONSULTAR_ESTADO_MUTE_Y_VOLUMEN) {
     s_last_status_sent=status;
@@ -426,6 +412,15 @@ void send_message_to_phone(int status){
   app_message_outbox_send();
 }
 
+static void send_configuration_message_to_phone(){
+  DictionaryIterator *iter;
+	app_message_outbox_begin(&iter);
+  dict_write_cstring(iter, MESSAGE_KEY_configipaddr, settings.ipaddr);
+  dict_write_cstring(iter, MESSAGE_KEY_configport, settings.port);
+	dict_write_uint8(iter, MESSAGE_KEY_configure, 1);
+	dict_write_end(iter);
+  app_message_outbox_send();
+}
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -483,18 +478,25 @@ static void in_received_handler(DictionaryIterator *received, void *context) {
     }
     else if (startsWith("init=",tuple->value->cstring)) {
       APP_LOG(APP_LOG_LEVEL_INFO, "   Received JS Ready");
+      send_configuration_message_to_phone();
+    }
+    else if (startsWith("configured=",tuple->value->cstring)) {
+      APP_LOG(APP_LOG_LEVEL_INFO, "   Received JS Configured");
       send_message_to_phone(STATUS_CONSULTAR_ESTADO_MUTE_Y_VOLUMEN);
     }
 	}
   // valores de configuracion
 	tuple = dict_find(received, MESSAGE_KEY_ipaddr);
 	if(tuple) {
-		APP_LOG(APP_LOG_LEVEL_INFO, "   Received IP Address configuration value from Phone: %s", tuple->value->cstring);
-//    persist_write_string(PKEY_IPADDR,tuple->value->cstring);
+    snprintf(settings.ipaddr, sizeof(settings.ipaddr), "%s", tuple->value->cstring);
+		APP_LOG(APP_LOG_LEVEL_INFO, "   Received IP Address configuration value from Phone: [%s] [%u] [%s]", tuple->value->cstring, sizeof(settings.ipaddr), settings.ipaddr);
+    prv_save_settings();
 	}
 	tuple = dict_find(received, MESSAGE_KEY_port);
 	if(tuple) {
-		APP_LOG(APP_LOG_LEVEL_INFO, "   Received Port configuration value from Phone: %s", tuple->value->cstring);
+    snprintf(settings.port, sizeof(settings.port), "%s", tuple->value->cstring);
+		APP_LOG(APP_LOG_LEVEL_INFO, "   Received Port configuration value from Phone: [%s] [%u] [%s]", tuple->value->cstring, sizeof(settings.port), settings.port);
+    prv_save_settings();
 	}
 }
 // Called when an incoming message from PebbleKitJS is dropped
@@ -709,6 +711,8 @@ static void window_unload(Window *window) {
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 void init(void) {
   APP_LOG(APP_LOG_LEVEL_INFO, ">>>Init");
@@ -734,6 +738,8 @@ void init(void) {
   });
   // Subscribe to tap events
   accel_tap_service_subscribe(accel_tap_handler);
+
+  prv_load_settings();
 
 //  s_volume = persist_exists(VOLUME_PKEY) ? persist_read_int(VOLUME_PKEY) : VOLUME_DEFAULT;
 }

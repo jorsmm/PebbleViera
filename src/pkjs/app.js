@@ -10,7 +10,7 @@ var messageKeys = require('message_keys');
 var commands=['','VOLUP','MUTE','VOLDOWN',
                  'CH_UP','TV','CH_DOWN',
                  'CHG_INPUT','POWER','INFO'];
-var ipAddress="192.168.1.8";
+var ipAddress="192.168.0.8";
 var port="55000";
 
 // urls
@@ -49,10 +49,11 @@ function submitRequest (url, urn, action, options) {
 
   var req = new XMLHttpRequest();
   req.open('POST', 'http://'+ipAddress+':'+port+url);
+  console.log('###submitRequest POST ['+'http://'+ipAddress+':'+port+url+']');
   req.setRequestHeader("Content-Type", "text/xml; charset=utf-8");
   req.setRequestHeader("SOAPACTION", '"urn:'+urn+'#'+action+'"');
   req.onload = function () {
-    console.log("["+action+"]>>>>>>>>>>##readyState##"+req.readyState);
+    console.info("["+action+"]>>>>>>>>>>##readyState##"+req.readyState);
     if (req.readyState === 4) {
       if (req.status === 200) {
         //console.log("##respuesta##"+req.responseText);
@@ -79,10 +80,10 @@ function submitRequest (url, urn, action, options) {
   req.timeout = 2000;
   req.ontimeout = function () {
     //jsmm 02/06/2016 para probar falsear como que me ha llegado volumen, descomentar 2 lineas siguientes y comentar la última de STATUS_ENVIAR_ERROR_TIMEOUT
-    console.log('Error de TIMEOUT. falsear enviando volumen 8');
-    pintaRespuestaVolumen(100);
-    //console.log("["+action+"]Error de TIMEOUT. Enviar status "+STATUS_ENVIAR_ERROR_TIMEOUT);
-    //sendStatus(STATUS_ENVIAR_ERROR_TIMEOUT);
+//    console.log('Error de TIMEOUT. falsear enviando volumen 8');
+//    pintaRespuestaVolumen(100);
+    console.log("["+action+"]Error de TIMEOUT. Enviar status "+STATUS_ENVIAR_ERROR_TIMEOUT);
+    sendStatus(STATUS_ENVIAR_ERROR_TIMEOUT);
   };
   req.onerror = function () {
     console.log("["+action+"]Error. Enviar status "+STATUS_ENVIAR_ERROR);
@@ -224,18 +225,34 @@ Pebble.addEventListener("ready",
 
 // Called when incoming message from the Pebble is received
 Pebble.addEventListener("appmessage",
-   function(e) {
-     console.log("####Received Status from Wath: " + e.payload.status);
-     if (e.payload.status == STATUS_CONSULTAR_ESTADO_MUTE_Y_VOLUMEN) {
-       // se pide el mute, y en la respuesta de este se pide el volumen secuencialmente
-       getMute();
+   function(dict) {
+     console.log("####Received from Watch: " + JSON.stringify(dict.payload));
+
+     if(dict.payload.status) {
+       console.log("####Received Status from Watch: " + dict.payload.status);
+       if (dict.payload.status == STATUS_CONSULTAR_ESTADO_MUTE_Y_VOLUMEN) {
+         // se pide el mute, y en la respuesta de este se pide el volumen secuencialmente
+         getMute();
+       }
+       else if (dict.payload.status == STATUS_CONSULTAR_ESTADO_MUTE_Y_VOLUMEN_CON_DELAY) {
+         // se pide con delay porque se acaba de pedir encender: el mute, y en la respuesta de este se pide el volumen secuencialmente
+         setTimeout(getMute,500);
+       }
+       else {
+         send(commands[dict.payload.status]);
+       }
      }
-     else if (e.payload.status == STATUS_CONSULTAR_ESTADO_MUTE_Y_VOLUMEN_CON_DELAY) {
-       // se pide con delay porque se acaba de pedir encender: el mute, y en la respuesta de este se pide el volumen secuencialmente
-       setTimeout(getMute,500);
+     if(dict.payload.configipaddr) {
+       console.log("####Received configipaddr message from Watch: " + dict.payload.configipaddr);
+       ipAddress=dict.payload.configipaddr;
      }
-     else {
-       send(commands[e.payload.status]);
+     if(dict.payload.configport) {
+       console.log("####Received configport message from Watch: " + dict.payload.configport);
+       port=dict.payload.configport;
+     }
+     if(dict.payload.configure) {
+       console.log("####Received configure message from Watch: " + dict.payload.configure);
+       sendMyMessage("configured=true");
      }
    }
 );

@@ -18,9 +18,9 @@ module.exports = [
         "type": "input",
         "messageKey": "ipaddr",
         "label": "IP Address",
-        "defaultValue": "192.168.1.8",
+        "defaultValue": "192.168.0.8",
         "attributes": {
-          "placeholder": "eg: 192.168.1.8",
+          "placeholder": "eg: 192.168.0.8",
           "type": "text"
         }
       },
